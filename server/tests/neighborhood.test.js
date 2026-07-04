@@ -13,6 +13,7 @@ async function startTestServer(t) {
     dataFile,
     staticRoot: path.resolve(__dirname, "../.."),
     logRequests: false,
+    env: {},
   });
 
   await new Promise((resolve) => app.server.listen(0, "127.0.0.1", resolve));
@@ -158,4 +159,47 @@ test("safety complaints reduce credit and close high-risk permissions", async (t
     body: JSON.stringify({ text: "今天帮我接孩子放学，送到小区门口。" }),
   });
   assert.equal(parsed.body.matches.some((match) => match.id === "u-105"), false);
+});
+
+test("assistant distinguishes a route offer from a help request", async (t) => {
+  const baseUrl = await startTestServer(t);
+  const { response, body } = await jsonRequest(baseUrl, "/api/assistant/chat", {
+    method: "POST",
+    body: JSON.stringify({ message: "我今天去中通快递站，有没有邻居要带快递的" }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(body.intent.type, "route_offer");
+  assert.equal(body.publishTask.serviceTag, "顺路帮取");
+  assert.ok(body.nearbyRequests.length > 0);
+  assert.deepEqual(body.nearbyHelpers, []);
+});
+
+test("assistant returns nearby helpers when the user needs help", async (t) => {
+  const baseUrl = await startTestServer(t);
+  const { response, body } = await jsonRequest(baseUrl, "/api/assistant/chat", {
+    method: "POST",
+    body: JSON.stringify({ message: "今天谁能帮我去中通快递站取一下快递" }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(body.intent.type, "help_request");
+  assert.equal(body.publishTask.serviceTag, "求助取件");
+  assert.deepEqual(body.nearbyRequests, []);
+  assert.ok(body.nearbyHelpers.length > 0);
+});
+
+test("assistant prioritizes childcare help over route wording", async (t) => {
+  const baseUrl = await startTestServer(t);
+  const { response, body } = await jsonRequest(baseUrl, "/api/assistant/chat", {
+    method: "POST",
+    body: JSON.stringify({ message: "我今天去中通快递站上班，没时间接送孩子，有没有邻居下午 4 点帮忙接一下。" }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(body.intent.type, "help_request");
+  assert.equal(body.publishTask.serviceTag, "求助接送");
+  assert.equal(body.publishTask.category, "ask");
+  assert.ok(body.nearbyHelpers.length > 0);
+  assert.deepEqual(body.nearbyRequests, []);
 });

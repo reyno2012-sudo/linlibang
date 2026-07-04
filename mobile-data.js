@@ -12,7 +12,7 @@ window.NB_MOCK = {
   quickActions: [
     {
       id: "errand",
-      title: "邻里跑腿互助",
+      title: "跑腿互助",
       subtitle: "宠物照顾、跑腿代办、简单维修",
       tone: "yellow",
       art: "mail",

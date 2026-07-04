@@ -334,6 +334,266 @@ function parseAndMatch(store, text) {
   };
 }
 
+function normalizeAssistantLocation(raw, matchedLocation) {
+  const namedStation = raw.match(/((?:中通|菜鸟|圆通|申通|韵达|顺丰|京东|丰巢)[^，。,\.\s]{0,6}(?:快递站|驿站|快递柜|门口))/);
+  if (namedStation) return namedStation[1];
+  const communityPlace = raw.match(/(小区门口|北门|南门|东门|西门|物业中心)/);
+  if (communityPlace) return communityPlace[1];
+  return matchedLocation || "小区快递站";
+}
+
+function detectRouteIntent(text) {
+  const raw = requireText(text, "message");
+  const isGoing = /去|路过|顺路|经过|到/.test(raw);
+  const isStation = /快递站|驿站|菜鸟|丰巢|快递柜|门口/.test(raw);
+  const asksForHelp = /帮我|求助|需要.*帮|谁能|能不能.*帮|有没有人.*帮|没时间|来不及|不方便|代取|带回|取一下|拿一下|接送|接一下|帮忙接|照看|看护/.test(raw);
+  const offersHelp = /有没有.*要|谁要|可以帮|顺手帮|顺路帮|帮邻居|带快递的|要带|可帮/.test(raw);
+  const locationMatch = raw.match(/([^，。,.\s]{1,12}(?:快递站|驿站|快递柜|门口))/);
+  const timeMatch = raw.match(/今天|今晚|明天|上午|下午|晚上|\d{1,2}\s*点/);
+
+  return {
+    raw,
+    type: asksForHelp ? "help_request" : offersHelp || (isGoing && isStation) ? "route_offer" : "general_help",
+    location: normalizeAssistantLocation(raw, locationMatch?.[1]),
+    time: timeMatch?.[0] || "今天",
+  };
+}
+
+function inferAssistantService(intent) {
+  if (/接送|接一下|帮忙接|孩子|小孩|学校|幼儿园/.test(intent.raw)) return "求助接送";
+  if (/快递|驿站|快递站|快递柜|取件/.test(intent.raw)) return intent.type === "help_request" ? "求助取件" : "顺路帮取";
+  if (/买菜|超市|带菜|采购/.test(intent.raw)) return intent.type === "help_request" ? "求助代买" : "顺路代买";
+  return intent.type === "help_request" ? "求助互助" : intent.type === "route_offer" ? "顺路互助" : "邻里互助";
+}
+
+function buildAssistantDescription(intent, serviceTag) {
+  if (serviceTag === "求助接送") return `${intent.time}没时间接送孩子，想请邻居帮忙接一下，可免费或付费协商。`;
+  if (serviceTag === "求助取件") return `${intent.time}想请邻居帮忙从${intent.location}取快递。`;
+  if (serviceTag === "顺路帮取") return `${intent.time}去${intent.location}，可以顺手帮邻居取小件快递。`;
+  return intent.raw;
+}
+
+function findNearbyRequests(intent) {
+  const requests = [
+    {
+      id: "help-101",
+      title: "顺手取一个快递",
+      requester: "安安",
+      place: "3栋楼下",
+      distance: 80,
+      budget: 5,
+      text: `在${intent.location}有一个小件快递，想请顺路邻居带到 3 栋楼下。`,
+      mode: "paid",
+    },
+    {
+      id: "help-102",
+      title: "帮忙看下快递柜编号",
+      requester: "阿树",
+      place: "小区门口",
+      distance: 140,
+      budget: 0,
+      text: `如果路过${intent.location}，想麻烦拍一下取件柜屏幕提示。`,
+      mode: "free",
+    },
+    {
+      id: "help-103",
+      title: "代取文件袋",
+      requester: "林小禾",
+      place: "5栋门口",
+      distance: 220,
+      budget: 8,
+      text: `今天有个文件袋到${intent.location}，希望同小区邻居顺手带回。`,
+      mode: "paid",
+    },
+  ];
+
+  return requests
+    .map((item) => ({ ...item, score: Math.max(60, 96 - Math.round(item.distance / 8)) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+}
+
+function findNearbyHelpers(intent) {
+  if (/接送|接一下|帮忙接|孩子|小孩|学校|幼儿园/.test(intent.raw)) {
+    return [
+      {
+        id: "helper-child-101",
+        helper: "林小禾",
+        title: "同小区家长可帮接孩子",
+        place: "小区北门",
+        distance: 180,
+        budget: 15,
+        text: "林小禾今天 18:00 左右在小区北门附近，可帮忙接孩子到门岗或楼下。",
+        mode: "paid",
+        score: 91,
+      },
+      {
+        id: "helper-child-102",
+        helper: "王启明",
+        title: "3栋邻居可临时照应",
+        place: "3栋楼下",
+        distance: 80,
+        budget: 0,
+        text: "王启明傍晚在 3 栋附近，可短时间帮忙照应，建议先确认孩子信息。",
+        mode: "free",
+        score: 86,
+      },
+    ];
+  }
+  return [
+    {
+      id: "helper-101",
+      helper: "王启明",
+      title: "3栋邻居可帮取件",
+      place: "3栋楼下",
+      distance: 80,
+      budget: 6,
+      text: `王启明今天会路过${intent.location}，可帮忙带小件快递到 3 栋楼下。`,
+      mode: "paid",
+      score: 92,
+    },
+    {
+      id: "helper-102",
+      helper: "林小禾",
+      title: "物业认证服务者可接单",
+      place: "5栋门口",
+      distance: 220,
+      budget: 8,
+      text: `林小禾可在${intent.time}去${intent.location}取件，支持送到楼下。`,
+      mode: "paid",
+      score: 84,
+    },
+    {
+      id: "helper-103",
+      helper: "陈海",
+      title: "社区达人顺手帮忙",
+      place: "1栋",
+      distance: 410,
+      budget: 0,
+      text: "陈海常在小区门口附近活动，可以免费帮看快递柜编号。",
+      mode: "free",
+      score: 73,
+    },
+  ];
+}
+
+function buildAssistantFallback(store, message) {
+  store.read();
+  const intent = detectRouteIntent(message);
+  const nearbyRequests = findNearbyRequests(intent);
+  const nearbyHelpers = intent.type === "help_request" ? findNearbyHelpers(intent) : [];
+  const serviceTag = inferAssistantService(intent);
+  const publishTask = {
+    id: `ai-${Date.now()}`,
+    serviceTag,
+    category: intent.type === "help_request" ? "ask" : "offer",
+    description: buildAssistantDescription(intent, serviceTag),
+    time: intent.time,
+    location: intent.location,
+    budget: 0,
+    negotiable: true,
+    riskLevel: "绿色 - 低风险",
+    authRule: "手机号 + 同小区认证优先",
+    evidenceRule: "取件拍照 + 送达确认",
+    type: "service",
+  };
+
+  return {
+    reply:
+      intent.type === "route_offer"
+        ? `我识别到你今天会去${intent.location}，可以把这条顺路能力发布成互助，也可以先看看附近有没有人正好需要帮忙。`
+        : intent.type === "help_request"
+          ? `我理解你是在求帮助：${buildAssistantDescription(intent, serviceTag)} 我先帮你找了附近可能能帮忙的人，也可以整理成求助帖发到发现页。`
+        : "我可以帮你把需求整理成邻里互助任务，并匹配附近可响应的人。",
+    intent,
+    nearbyRequests: intent.type === "help_request" ? [] : nearbyRequests,
+    nearbyHelpers,
+    publishTask,
+    quickReplies: intent.type === "help_request" ? ["发布求助帖", "邀请附近邻居", "改成付费求助"] : ["自动发布顺路任务", "看看附近求助", "改成付费帮助"],
+    source: "local_rules",
+  };
+}
+
+async function callAssistantModel(message, fallback, env = process.env) {
+  const apiKey = env.ASSISTANT_API_KEY;
+  const baseUrl = env.ASSISTANT_BASE_URL || "https://api.aigcly.top";
+  const model = env.ASSISTANT_MODEL || "grok-4.20-multi-agent-xhigh";
+  if (!apiKey) return fallback;
+
+  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/v1/chat/completions`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: "system",
+          content:
+            "你是邻里帮的对话式 AI 助手。先判断用户是在提供帮助还是需要帮助：例如'我今天去中通快递站，有没有邻居要带快递的'是提供帮助；'谁能帮我取快递'是需要帮助。只返回 JSON，字段为 reply, quickReplies。语气温暖、简洁、可靠。",
+        },
+        { role: "user", content: message },
+      ],
+      temperature: 0.3,
+    }),
+  });
+
+  if (!response.ok) return { ...fallback, source: "local_rules", modelError: response.status };
+  const raw = await response.text();
+  const payload = parseModelPayload(raw);
+  const content = payload?.choices?.[0]?.message?.content || payload?.choices?.[0]?.delta?.content;
+  if (!content) return fallback;
+
+  try {
+    const parsed = JSON.parse(content);
+    return {
+      ...fallback,
+      reply: parsed.reply || fallback.reply,
+      quickReplies: Array.isArray(parsed.quickReplies) ? parsed.quickReplies.slice(0, 4) : fallback.quickReplies,
+      source: "model",
+    };
+  } catch {
+    return { ...fallback, reply: content, source: "model" };
+  }
+}
+
+function parseModelPayload(raw) {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const chunks = raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith("data:") && line !== "data: [DONE]")
+      .map((line) => line.slice(5).trim());
+    const contents = [];
+    let lastPayload = null;
+    for (const chunk of chunks) {
+      try {
+        const parsed = JSON.parse(chunk);
+        lastPayload = parsed;
+        const delta = parsed.choices?.[0]?.delta?.content;
+        const message = parsed.choices?.[0]?.message?.content;
+        if (delta) contents.push(delta);
+        if (message) contents.push(message);
+      } catch {
+        // Ignore malformed stream fragments and fall back to local rules.
+      }
+    }
+    if (contents.length) return { choices: [{ message: { content: contents.join("") } }] };
+    return lastPayload;
+  }
+}
+
+async function assistantChat(store, input, env = process.env) {
+  if (!input || typeof input !== "object") throw new ValidationError([{ field: "body", message: "请求体不能为空" }]);
+  const message = requireText(input.message, "message");
+  const fallback = buildAssistantFallback(store, message);
+  return callAssistantModel(message, fallback, env);
+}
+
 function findOrder(data, id) {
   const order = data.orders.find((item) => item.id === id);
   if (!order) throw new NotFoundError("订单", id);
@@ -516,6 +776,7 @@ module.exports = {
   orderSteps,
   parseAndMatch,
   parseTaskText,
+  assistantChat,
   rankWorkers,
   suggestPrice,
 };

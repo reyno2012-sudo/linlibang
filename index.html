@@ -22,6 +22,14 @@
             <span>居民端</span>
             <small>一句话发需求</small>
           </button>
+          <button class="nav-item" data-view="assistant">
+            <span>AI 助手</span>
+            <small>对话匹配与发帖</small>
+          </button>
+          <button class="nav-item" data-view="discover">
+            <span>社区发现</span>
+            <small>热门、最新、搜索</small>
+          </button>
           <button class="nav-item" data-view="tools">
             <span>工具银行</span>
             <small>借用与归还</small>
@@ -54,56 +62,126 @@
         </section>
 
         <section class="view active" id="view-resident">
-          <div class="compose-layout">
-            <section class="composer-panel">
-              <div class="section-title">
-                <span class="step-pill">01</span>
+          <div class="resident-layout">
+            <div class="resident-main">
+              <div class="compose-layout">
+                <section class="composer-panel">
+                  <div class="section-title">
+                    <span class="step-pill">01</span>
+                    <div>
+                      <h3>一句话发布</h3>
+                      <p>Agent 只追问会影响匹配、价格、风险或履约的缺失信息。</p>
+                    </div>
+                  </div>
+
+                  <label class="field-label" for="requestText">需求描述</label>
+                  <textarea id="requestText" rows="5">今晚 7 点前帮我从小区门口取个快递，送到 3 栋楼下，10 元以内。</textarea>
+
+                  <div class="quick-grid">
+                    <button class="quick-chip" data-template="今晚 7 点前帮我从小区门口取个快递，送到 3 栋楼下，10 元以内。">代取快递</button>
+                    <button class="quick-chip" data-template="今晚 8 点想借电钻挂画，半小时后还，最好同楼栋。">借电钻</button>
+                    <button class="quick-chip" data-template="明天上午想找人帮我把两个收纳箱搬到 5 栋门口，预算 20 元。">小型搬运</button>
+                  </div>
+
+                  <button class="primary-button" id="parseTaskButton">解析成任务卡</button>
+                </section>
+
+                <section class="agent-panel" aria-live="polite">
+                  <div class="section-title">
+                    <span class="step-pill">02</span>
+                    <div>
+                      <h3>Agent 工具调用</h3>
+                      <p>展示 parse_task、rank_workers、suggest_price、create_order 的结果。</p>
+                    </div>
+                  </div>
+                  <div id="agentLog" class="agent-log empty-state">等待用户发布需求。</div>
+                </section>
+              </div>
+
+              <div class="task-grid">
+                <section class="task-card-panel" id="taskCardPanel">
+                  <div class="empty-state tall">解析后会在这里生成任务卡。</div>
+                </section>
+
+                <section class="match-panel">
+                  <div class="section-title compact">
+                    <span class="step-pill">03</span>
+                    <div>
+                      <h3>候选人与议价</h3>
+                      <p>按距离、认证、报价、信用、响应速度排序。</p>
+                    </div>
+                  </div>
+                  <div id="matchList" class="match-list empty-state">暂无候选人。</div>
+                </section>
+              </div>
+            </div>
+
+            <aside class="ai-assistant" aria-label="AI 助手">
+              <div class="assistant-head">
+                <div class="assistant-mark">AI</div>
                 <div>
-                  <h3>一句话发布</h3>
-                  <p>Agent 只追问会影响匹配、价格、风险或履约的缺失信息。</p>
+                  <p class="eyebrow">Assistant</p>
+                  <h3>发单助手</h3>
                 </div>
               </div>
-
-              <label class="field-label" for="requestText">需求描述</label>
-              <textarea id="requestText" rows="5">今晚 7 点前帮我从小区门口取个快递，送到 3 栋楼下，10 元以内。</textarea>
-
-              <div class="quick-grid">
-                <button class="quick-chip" data-template="今晚 7 点前帮我从小区门口取个快递，送到 3 栋楼下，10 元以内。">代取快递</button>
-                <button class="quick-chip" data-template="今晚 8 点想借电钻挂画，半小时后还，最好同楼栋。">借电钻</button>
-                <button class="quick-chip" data-template="明天上午想找人帮我把两个收纳箱搬到 5 栋门口，预算 20 元。">小型搬运</button>
+              <div id="assistantSummary" class="assistant-summary"></div>
+              <div class="assistant-block">
+                <strong>建议补充</strong>
+                <ul id="assistantQuestions" class="assistant-list"></ul>
               </div>
-
-              <button class="primary-button" id="parseTaskButton">解析成任务卡</button>
-            </section>
-
-            <section class="agent-panel" aria-live="polite">
-              <div class="section-title">
-                <span class="step-pill">02</span>
-                <div>
-                  <h3>Agent 工具调用</h3>
-                  <p>展示 parse_task、rank_workers、suggest_price、create_order 的结果。</p>
-                </div>
+              <div class="assistant-block">
+                <strong>下一步</strong>
+                <p id="assistantNext" class="reason"></p>
               </div>
-              <div id="agentLog" class="agent-log empty-state">等待用户发布需求。</div>
-            </section>
+              <div class="assistant-actions">
+                <button class="small-button" id="assistantPolish">补全描述</button>
+                <button class="primary-button" id="assistantParse">立即解析</button>
+              </div>
+            </aside>
           </div>
+        </section>
 
-          <div class="task-grid">
-            <section class="task-card-panel" id="taskCardPanel">
-              <div class="empty-state tall">解析后会在这里生成任务卡。</div>
-            </section>
-
-            <section class="match-panel">
-              <div class="section-title compact">
-                <span class="step-pill">03</span>
-                <div>
-                  <h3>候选人与议价</h3>
-                  <p>按距离、认证、报价、信用、响应速度排序。</p>
-                </div>
-              </div>
-              <div id="matchList" class="match-list empty-state">暂无候选人。</div>
-            </section>
+        <section class="view" id="view-assistant">
+          <div class="split-header">
+            <div>
+              <p class="eyebrow">AI Assistant</p>
+              <h3>对话式邻里助手</h3>
+              <p>说一句顺路计划，AI 会匹配附近求助，并整理成可发布到发现页的帖子。</p>
+            </div>
           </div>
+          <section class="desktop-assistant">
+            <div class="assistant-chat-panel">
+              <div id="desktopAssistantLog" class="desktop-chat-log"></div>
+              <div id="desktopAssistantSuggestions" class="desktop-suggestions"></div>
+              <div class="desktop-chat-composer">
+                <input id="desktopAssistantInput" type="text" placeholder="例如：我今天去中通快递站，有没有邻居要带快递的" />
+                <button class="primary-button" id="desktopAssistantSend">发送</button>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="view-discover">
+          <div class="split-header">
+            <div>
+              <p class="eyebrow">Community Feed</p>
+              <h3>社区发现</h3>
+              <p>查看 AI 发出的顺路互助帖，也可以按热门、最新和关键词筛选。</p>
+            </div>
+          </div>
+          <div class="discover-controls desktop">
+            <div class="discover-tabs">
+              <button class="active" data-discover-mode="hot" type="button">热门</button>
+              <button data-discover-mode="latest" type="button">最新</button>
+              <button data-discover-mode="search" type="button">搜索</button>
+            </div>
+            <div class="discover-tabs sub-tabs">
+              <button class="active" data-discover-category="ask" type="button">求帮助</button>
+              <button data-discover-category="offer" type="button">帮助</button>
+            </div>
+            <input id="desktopDiscoverSearch" class="discover-search" type="search" placeholder="搜索快递、工具、活动" />
+          </div>
+          <div id="desktopDiscoverList" class="desktop-discover-list"></div>
         </section>
 
         <section class="view" id="view-tools">
