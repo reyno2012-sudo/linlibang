@@ -9,6 +9,49 @@ let profileState = loadProfile();
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
+const riskPolicies = {
+  child_pickup: {
+    title: "儿童接送",
+    risk: "红色最高风险",
+    minCredit: 95,
+    evidence: ["监护人电子授权", "校门+孩子全身合照", "送达单元门拍照", "GPS 轨迹留存"],
+    forbidden: ["禁止绕行逗留", "禁止进入接单者家中", "禁止给孩子零食饮料"],
+    money: "平台托管资金 + 当日责任险",
+  },
+  elder_care: {
+    title: "老人陪护",
+    risk: "红色高风险",
+    minCredit: 92,
+    evidence: ["家属紧急联系人", "进门/离开拍照", "APP 录音留存", "白天 9:00-18:00"],
+    forbidden: ["认知不清需家属陪同", "禁止夜间独居陪护", "禁止处理无关财物"],
+    money: "平台托管资金 + 争议冻结佣金",
+  },
+  pet_care: {
+    title: "遛宠照看",
+    risk: "黄色中风险",
+    minCredit: 85,
+    evidence: ["宠物牵引规则", "出门/返还拍照", "GPS 轨迹留存", "宠物伤人责任协议"],
+    forbidden: ["禁止解开牵引绳", "禁止长时间带离小区", "禁止转交第三人"],
+    money: "平台托管资金 + 责任提前划分",
+  },
+  home_repair: {
+    title: "上门维修",
+    risk: "黄色中风险",
+    minCredit: 90,
+    evidence: ["维修范围确认", "进门/离开拍照", "维修前后照片", "物业备案优先"],
+    forbidden: ["禁止扩大维修范围", "禁止触碰无关财物", "禁止夜间单独上门"],
+    money: "平台托管资金 + 材料费单独确认",
+  },
+  low_risk: {
+    title: "邻里互助",
+    risk: "绿色低风险",
+    minCredit: 80,
+    evidence: ["实名接单", "小区居住核验", "完成拍照"],
+    forbidden: ["禁止线下私收费用", "禁止私拆包裹"],
+    money: "平台托管资金",
+  },
+};
+
 function icon(name) {
   const icons = {
     bell: '<svg viewBox="0 0 24 24"><path d="M18 9.5a6 6 0 0 0-12 0c0 7-2.2 7.5-2.2 7.5h16.4S18 16.5 18 9.5Z"/><path d="M10 20a2.4 2.4 0 0 0 4 0"/></svg>',
@@ -247,6 +290,12 @@ function renderProfile() {
         <p>实名、楼栋、手机号均已完成。可发布低风险互助任务，也可以申请借用公共工具。</p>
       </div>
     </section>
+    <section class="credit-status-grid" aria-label="信用与安全权限">
+      <div><span>信用等级</span><strong>A</strong><small>高信用优先匹配</small></div>
+      <div><span>熟人背书</span><strong>6 人</strong><small>同小区注册用户认证</small></div>
+      <div><span>低风险互助</span><strong>已开放</strong><small>跑腿、工具、遛宠</small></div>
+      <div><span>高风险服务</span><strong>待补充</strong><small>需无犯罪记录/押金/专项协议</small></div>
+    </section>
     <section class="profile-list">
       <div><span>完成互助</span><strong>23</strong></div>
       <div><span>准时履约</span><strong>98%</strong></div>
@@ -255,22 +304,122 @@ function renderProfile() {
   `;
 }
 
+function detectRiskScenario(raw) {
+  if (/接孩子|接娃|放学|学校|校门|班级|儿童|未成年/.test(raw)) return "child_pickup";
+  if (/老人|独居|陪护|搀扶|看护|认知|阿尔茨海默/.test(raw)) return "elder_care";
+  if (/遛狗|遛猫|遛宠|宠物|猫|狗/.test(raw)) return "pet_care";
+  if (/上门维修|维修|电路|水管|家电|打孔|换灯/.test(raw)) return "home_repair";
+  return "low_risk";
+}
+
 function parseTask(text) {
   const raw = text.trim();
   const isTool = /借|小推车|梯|工具|电钻/.test(raw);
+  const riskKey = detectRiskScenario(raw);
+  const riskPolicy = riskPolicies[riskKey];
   const priceMatch = raw.match(/(\d+)\s*元/);
   return {
-    title: isTool ? "工具借用" : "邻里互助",
+    title: riskKey === "low_risk" ? (isTool ? "工具借用" : "邻里互助") : riskPolicy.title,
     desc: raw || "想请附近邻居帮个小忙。",
     time: raw.match(/今晚|今天|明天|周六|周日/)?.[0] || "今天",
     place: raw.match(/[1-9]\s*栋|小区门口|楼下|花园/)?.[0] || "同小区",
     budget: priceMatch ? Number(priceMatch[1]) : isTool ? 0 : 10,
-    risk: "绿色低风险",
-    advice: isTool ? "建议补充预计归还时间。" : "建议补充是否上楼、物品大小和是否可议价。",
+    risk: riskPolicy.risk,
+    riskKey,
+    safetyPlan: riskPolicy,
+    advice:
+      riskKey === "child_pickup"
+        ? "请补充监护人授权、孩子班级衣着、固定交接点和备用联系人。"
+        : riskKey === "elder_care"
+          ? "请补充家属联系人、老人基础身体状况和服务时段。"
+          : riskKey === "pet_care"
+            ? "请补充宠物性格、牵引规则和伤人责任约定。"
+            : isTool
+              ? "建议补充预计归还时间。"
+              : "建议补充是否上楼、物品大小和是否可议价。",
   };
 }
 
-function renderAgentResult() {
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function taskReferenceText(task) {
+  return Number(task.budget) === 0 ? "免费/押金" : "8-15 元";
+}
+
+function TaskInfoButton(field, label, value) {
+  return `
+    <button class="info-edit-button" type="button" data-edit-task-field="${field}" aria-label="修改${label}">
+      <small>${label}</small>
+      <b>${escapeHtml(value)}</b>
+    </button>
+  `;
+}
+
+function SafetyPlanPanel(task) {
+  const plan = task.safetyPlan || riskPolicies.low_risk;
+  return `
+    <section class="safety-plan" aria-label="信用与安全规则">
+      <div class="safety-plan-head">
+        <div>
+          <small>信用准入</small>
+          <strong>${plan.title} · ${plan.risk}</strong>
+        </div>
+        <span>${plan.minCredit}+ 分</span>
+      </div>
+      <div class="safety-chip-row">
+        ${plan.evidence.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+      </div>
+      <div class="safety-rule-grid">
+        <div>
+          <small>硬性禁令</small>
+          <p>${plan.forbidden.map(escapeHtml).join("；")}</p>
+        </div>
+        <div>
+          <small>资金保险</small>
+          <p>${escapeHtml(plan.money)}</p>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function normalizeTaskField(field, value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return null;
+  if (field !== "budget") return trimmed;
+
+  const number = Number(trimmed.replace(/[^\d.]/g, ""));
+  if (!Number.isFinite(number) || number < 0) return null;
+  return Math.round(number);
+}
+
+function editTaskField(field) {
+  if (!lastTask) return;
+  const labels = { time: "时间", place: "位置", budget: "预算" };
+  const label = labels[field];
+  if (!label) return;
+
+  const current = field === "budget" ? `${lastTask.budget}` : lastTask[field];
+  const nextValue = window.prompt(`修改${label}`, current);
+  if (nextValue === null) return;
+
+  const normalized = normalizeTaskField(field, nextValue);
+  if (normalized === null) {
+    window.alert(field === "budget" ? "请输入有效预算" : `请输入有效${label}`);
+    return;
+  }
+
+  lastTask = { ...lastTask, [field]: normalized };
+  renderAgentResult({ shouldScroll: false });
+}
+
+function renderAgentResult(options = {}) {
   const result = $("#agentResult");
   if (!result || !lastTask) return;
   result.innerHTML = `
@@ -284,16 +433,19 @@ function renderAgentResult() {
         <strong>${lastTask.risk}</strong>
       </div>
       <div class="info-grid">
-        <div><small>时间</small><b>${lastTask.time}</b></div>
-        <div><small>位置</small><b>${lastTask.place}</b></div>
-        <div><small>预算</small><b>${lastTask.budget} 元</b></div>
-        <div><small>参考</small><b>${lastTask.budget === 0 ? "免费/押金" : "8-15 元"}</b></div>
+        ${TaskInfoButton("time", "时间", lastTask.time)}
+        ${TaskInfoButton("place", "位置", lastTask.place)}
+        ${TaskInfoButton("budget", "预算", `${lastTask.budget} 元`)}
+        <div><small>参考</small><b>${taskReferenceText(lastTask)}</b></div>
       </div>
       <p>${lastTask.advice}</p>
+      ${SafetyPlanPanel(lastTask)}
       <button type="button" class="primary-action" data-action="create-order">生成候选匹配</button>
     </article>
   `;
-  result.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (options.shouldScroll !== false) {
+    result.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 function openCompose(template) {
@@ -368,6 +520,11 @@ function bindEvents() {
   document.body.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
+
+    if (button.dataset.editTaskField) {
+      editTaskField(button.dataset.editTaskField);
+      return;
+    }
 
     if (button.dataset.screen) showScreen(button.dataset.screen);
     if (button.id === "openCompose") openCompose();

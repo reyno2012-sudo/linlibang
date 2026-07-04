@@ -114,3 +114,48 @@ test("rejects empty task text with a structured validation error", async (t) => 
   assert.equal(body.code, "VALIDATION_ERROR");
   assert.equal(body.details[0].field, "text");
 });
+
+test("gates child pickup orders behind high-risk credit and safety requirements", async (t) => {
+  const baseUrl = await startTestServer(t);
+  const { response, body } = await jsonRequest(baseUrl, "/api/tasks/parse", {
+    method: "POST",
+    body: JSON.stringify({
+      text: "明天下午帮我到实验小学接孩子，放学后送到 3 栋单元门口，预算 30 元。",
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(body.task.serviceTag, "儿童接送");
+  assert.equal(body.task.scenario.key, "child_pickup");
+  assert.equal(body.task.riskLevel, "红色 - 最高风险");
+  assert.ok(body.task.safetyPlan.requiredAuthorizations.includes("监护人电子授权书"));
+  assert.ok(body.task.safetyPlan.requiredEvidence.includes("到校门口拍摄校门+孩子全身合照"));
+  assert.ok(body.task.safetyPlan.forbiddenActions.includes("禁止带孩子去超市、游乐场或路边逗留"));
+  assert.ok(body.matches.length >= 1);
+  assert.ok(body.matches.every((match) => match.safetyEligibility.allowed));
+  assert.ok(body.matches[0].trustBadges.includes("无犯罪记录已核验"));
+  assert.equal(body.matches.some((match) => match.id === "u-103"), false);
+});
+
+test("safety complaints reduce credit and close high-risk permissions", async (t) => {
+  const baseUrl = await startTestServer(t);
+  const { response, body } = await jsonRequest(baseUrl, "/api/users/u-105/credit-events", {
+    method: "POST",
+    body: JSON.stringify({
+      type: "safety_complaint",
+      note: "儿童接送路线偏离超过 3 分钟",
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(body.user.credit, 80);
+  assert.equal(body.user.permissions.childPickup, false);
+  assert.equal(body.user.permissions.elderCare, false);
+  assert.equal(body.event.delta, -18);
+
+  const parsed = await jsonRequest(baseUrl, "/api/tasks/parse", {
+    method: "POST",
+    body: JSON.stringify({ text: "今天帮我接孩子放学，送到小区门口。" }),
+  });
+  assert.equal(parsed.body.matches.some((match) => match.id === "u-105"), false);
+});

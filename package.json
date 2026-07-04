@@ -5,7 +5,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server/index.js",
-    "test": "node server/tests/neighborhood.test.js"
+    "test": "node server/tests/neighborhood.test.js && node server/tests/mobile-editable-task.test.js"
   },
   "dependencies": {},
   "devDependencies": {}

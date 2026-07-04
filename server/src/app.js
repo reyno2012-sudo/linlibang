@@ -76,8 +76,14 @@ function routeApi(method, pathname, body, store) {
   if (method === "GET" && pathname === "/api/tools") return { status: 200, body: { tools: readCollection(store, "tools") } };
   if (method === "GET" && pathname === "/api/orders") return { status: 200, body: { orders: readCollection(store, "orders") } };
   if (method === "GET" && pathname === "/api/community/feed") return { status: 200, body: { posts: readCollection(store, "feed") } };
+  if (method === "GET" && pathname === "/api/risk/policy") return { status: 200, body: service.getRiskPolicy() };
   if (method === "POST" && pathname === "/api/tasks/parse") return { status: 200, body: service.parseAndMatch(store, body.text) };
   if (method === "POST" && pathname === "/api/orders") return { status: 201, body: { order: service.createOrder(store, body) } };
+
+  const creditAction = pathname.match(/^\/api\/users\/([^/]+)\/credit-events$/);
+  if (creditAction && method === "POST") {
+    return { status: 200, body: service.applyCreditEvent(store, creditAction[1], body) };
+  }
 
   const orderAction = pathname.match(/^\/api\/orders\/([^/]+)\/(advance|evidence|dispute)$/);
   if (orderAction && method === "PATCH") {
