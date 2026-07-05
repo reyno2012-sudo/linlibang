@@ -594,6 +594,45 @@ async function assistantChat(store, input, env = process.env) {
   return callAssistantModel(message, fallback, env);
 }
 
+function decodeAudioData(input) {
+  if (!input || typeof input !== "object") throw new ValidationError([{ field: "body", message: "请求体不能为空" }]);
+  const audioBase64 = requireText(input.audioBase64, "audioBase64");
+  const audio = Buffer.from(audioBase64.replace(/^data:[^;]+;base64,/, ""), "base64");
+  if (!audio.length) throw new ValidationError([{ field: "audioBase64", message: "语音内容不能为空" }]);
+  if (audio.length > 3 * 1024 * 1024) throw new ValidationError([{ field: "audioBase64", message: "语音不能超过 3MB" }]);
+  return {
+    audio,
+    mimeType: input.mimeType || "audio/webm",
+    filename: input.filename || "assistant-voice.webm",
+  };
+}
+
+async function transcribeAssistantAudio(input, env = process.env) {
+  const apiKey = env.ASSISTANT_API_KEY;
+  if (!apiKey) throw new ValidationError([{ field: "ASSISTANT_API_KEY", message: "未配置语音转文字 API Key" }]);
+  const { audio, mimeType, filename } = decodeAudioData(input);
+  const baseUrl = env.ASSISTANT_BASE_URL || "https://api.aigcly.top";
+  const model = env.ASSISTANT_TRANSCRIBE_MODEL || env.ASSISTANT_STT_MODEL || "whisper-1";
+  const form = new FormData();
+  form.append("model", model);
+  form.append("file", new Blob([audio], { type: mimeType }), filename);
+
+  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/v1/audio/transcriptions`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${apiKey}` },
+    body: form,
+  });
+  if (!response.ok) throw new ValidationError([{ field: "voice", message: `语音转文字失败：${response.status}` }]);
+  const result = await response.json();
+  return requireText(result.text || result.transcript || result.message, "transcript");
+}
+
+async function assistantVoiceChat(store, input, env = process.env) {
+  const transcript = await transcribeAssistantAudio(input, env);
+  const result = await assistantChat(store, { message: transcript }, env);
+  return { ...result, transcript };
+}
+
 function findOrder(data, id) {
   const order = data.orders.find((item) => item.id === id);
   if (!order) throw new NotFoundError("订单", id);
@@ -777,6 +816,7 @@ module.exports = {
   parseAndMatch,
   parseTaskText,
   assistantChat,
+  assistantVoiceChat,
   rankWorkers,
   suggestPrice,
 };

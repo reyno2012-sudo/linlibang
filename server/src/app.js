@@ -47,8 +47,8 @@ async function parseBody(req) {
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > 1024 * 1024) {
-      throw new ValidationError([{ field: "body", message: "请求体不能超过 1MB" }]);
+    if (size > 4 * 1024 * 1024) {
+      throw new ValidationError([{ field: "body", message: "请求体不能超过 4MB" }]);
     }
     chunks.push(chunk);
   }
@@ -78,6 +78,7 @@ async function routeApi(method, pathname, body, store, env = process.env) {
   if (method === "GET" && pathname === "/api/community/feed") return { status: 200, body: { posts: readCollection(store, "feed") } };
   if (method === "GET" && pathname === "/api/risk/policy") return { status: 200, body: service.getRiskPolicy() };
   if (method === "POST" && pathname === "/api/assistant/chat") return { status: 200, body: await service.assistantChat(store, body, env) };
+  if (method === "POST" && pathname === "/api/assistant/voice") return { status: 200, body: await service.assistantVoiceChat(store, body, env) };
   if (method === "POST" && pathname === "/api/tasks/parse") return { status: 200, body: service.parseAndMatch(store, body.text) };
   if (method === "POST" && pathname === "/api/orders") return { status: 201, body: { order: service.createOrder(store, body) } };
 

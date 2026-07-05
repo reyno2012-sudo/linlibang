@@ -203,3 +203,15 @@ test("assistant prioritizes childcare help over route wording", async (t) => {
   assert.ok(body.nearbyHelpers.length > 0);
   assert.deepEqual(body.nearbyRequests, []);
 });
+
+test("assistant voice endpoint requires transcription configuration", async (t) => {
+  const baseUrl = await startTestServer(t);
+  const { response, body } = await jsonRequest(baseUrl, "/api/assistant/voice", {
+    method: "POST",
+    body: JSON.stringify({ audioBase64: Buffer.from("fake audio").toString("base64"), mimeType: "audio/webm" }),
+  });
+
+  assert.equal(response.status, 422);
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.equal(body.details[0].field, "ASSISTANT_API_KEY");
+});

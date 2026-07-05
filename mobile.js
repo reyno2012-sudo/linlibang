@@ -19,20 +19,113 @@ let discoverCategory = "ask";
 let discoverSearch = "";
 let composeMode = "manual";
 let composeCategory = "ask";
-const communityPosts = data.discoverCards.map((item, index) => ({
-  id: `seed-${index}`,
-  title: item.title,
-  text: item.text,
-  count: item.count,
-  author: index === 0 ? "阿树" : index === 1 ? "物业工具柜" : "安安",
-  time: index === 0 ? "刚刚" : `${index + 1}小时前`,
-  heat: 88 - index * 13,
-  source: "seed",
-  category: index === 1 ? "offer" : "ask",
-}));
+const communityPosts = [
+  {
+    id: "seed-errand-ask-1",
+    title: "下班前能帮带一件中通快递吗？ #跑腿互助",
+    text: "我今晚 6 点半才能到家，快递站 7 点关门，想请同小区邻居顺手帮带到 6 栋门口，愿意付 8 元辛苦费。",
+    count: "12条回复",
+    author: "王启明",
+    avatar: "https://randomuser.me/api/portraits/men/32.jpg",
+    time: "刚刚",
+    heat: 98,
+    source: "seed",
+    category: "ask",
+  },
+  {
+    id: "seed-errand-offer-1",
+    title: "我在菜鸟驿站附近，可以顺路帮带 #跑腿互助",
+    text: "今天 18:20 从东门菜鸟驿站回 3 栋，轻小件可以顺手带，免费帮忙，备注楼栋和取件码就行。",
+    count: "9人想联系",
+    author: "林晓悦",
+    avatar: "https://randomuser.me/api/portraits/women/44.jpg",
+    time: "18分钟前",
+    heat: 92,
+    source: "seed",
+    category: "offer",
+  },
+  {
+    id: "seed-share-offer-1",
+    title: "折叠小推车今晚可借 #物品共享",
+    text: "家里有一辆承重 60kg 的折叠小推车，搬箱子、拿桶装水都方便，今晚 20:00 前可借，记得当天归还。",
+    count: "6人收藏",
+    author: "陈海宁",
+    avatar: "https://randomuser.me/api/portraits/men/46.jpg",
+    time: "35分钟前",
+    heat: 88,
+    source: "seed",
+    category: "offer",
+  },
+  {
+    id: "seed-chat-1",
+    title: "\u4eca\u665a\u697c\u4e0b\u6842\u82b1\u9999\u597d\u660e\u663e #\u90bb\u53cb\u5708",
+    text: "\u521a\u4ece\u5357\u95e8\u6563\u6b65\u56de\u6765\uff0c\u6842\u82b1\u4e00\u8def\u90fd\u5f88\u9999\u3002\u6709\u6ca1\u6709\u90bb\u5c45\u4e5f\u559c\u6b22\u665a\u4e0a\u7ed5\u5c0f\u533a\u6162\u8d70\uff1f\u53ef\u4ee5\u7ea6\u4e2a\u4e0d\u8d76\u65f6\u95f4\u7684\u6563\u6b65\u5c40\u3002",
+    count: "15\u6761\u8bc4\u8bba",
+    author: "\u6c88\u6e05\u79be",
+    avatar: "https://randomuser.me/api/portraits/women/12.jpg",
+    time: "24\u5206\u949f\u524d",
+    heat: 86,
+    source: "seed",
+    category: "chat",
+  },
+  {
+    id: "seed-share-ask-1",
+    title: "想借一把电钻装窗帘 #物品共享",
+    text: "周六上午想装两根窗帘杆，想借电钻和 6mm 钻头，用完会擦干净还回去，可以带一杯咖啡感谢。",
+    count: "4条回复",
+    author: "赵明远",
+    avatar: "https://randomuser.me/api/portraits/men/75.jpg",
+    time: "1小时前",
+    heat: 81,
+    source: "seed",
+    category: "ask",
+  },
+  {
+    id: "seed-circle-offer-1",
+    title: "周六亲子跳蚤小摊报名 #邻里动态",
+    text: "本周六下午在中心花园摆亲子小摊，旧书、玩具、手作都可以带来，想一起组织的邻居可以留言。",
+    count: "18人感兴趣",
+    author: "刘雨桐",
+    avatar: "https://randomuser.me/api/portraits/women/68.jpg",
+    time: "2小时前",
+    heat: 76,
+    source: "seed",
+    category: "offer",
+  },
+  {
+    id: "seed-circle-ask-1",
+    title: "有人知道北门临时施工几点结束吗？ #邻里动态",
+    text: "孩子午睡被施工声吵醒了，想问问有没有邻居知道今天北门维修大概几点结束，物业电话一直占线。",
+    count: "11条回复",
+    author: "周佳琪",
+    avatar: "https://randomuser.me/api/portraits/women/22.jpg",
+    time: "3小时前",
+    heat: 70,
+    source: "seed",
+    category: "ask",
+  },
+];
 let messageMode = "all";
 let activeChatId = null;
 const chats = {};
+let activePostId = null;
+const reportUrgencyOptions = ["一般", "紧急", "非常紧急"];
+const quickTopicSearches = {
+  errand: "\u0023\u8dd1\u817f\u4e92\u52a9",
+  share: "\u0023\u7269\u54c1\u5171\u4eab",
+  circle: "\u0023\u90bb\u91cc\u52a8\u6001",
+};
+
+function categoryLabel(category) {
+  if (category === "offer") return "\u5e2e\u52a9";
+  if (category === "chat") return "\u90bb\u53cb\u5708";
+  return "\u6c42\u5e2e\u52a9";
+}
+let voiceRecognition = null;
+let isRecordingVoice = false;
+let voiceStatusText = "";
+let isPressingVoice = false;
+let voiceStopRequested = false;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -86,6 +179,7 @@ function icon(name) {
     search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>',
     chevron: '<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>',
     arrow: '<svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>',
+    mic: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/><path d="M8 22h8"/></svg>',
   };
   return icons[name] || "";
 }
@@ -117,6 +211,10 @@ function AvatarContent(className = "") {
   return `<span>${profileState.name.slice(0, 1)}</span>`;
 }
 
+function currentUserPostAvatar() {
+  return profileState.avatar || "";
+}
+
 function HomeHeader() {
   return `
     <header class="home-header">
@@ -139,7 +237,23 @@ function HeroSection() {
   return `
     <section class="hero-section">
       <div class="hero-copy">
+        <span class="hero-kicker">邻里互助 · 顺路帮忙 · 安心托付</span>
         <h1>远亲不如近邻，<br />省心省力邻里帮。</h1>
+        <p>临时取件、接送孩子、借个小工具，很多小事不用硬扛。把需求说给 AI 助手，附近愿意帮忙的邻居就能更快看见。</p>
+        <div class="hero-pain-points" aria-label="常见互助场景">
+          <span>没时间取快递</span>
+          <span>下班赶不上接娃</span>
+          <span>工具只用一次</span>
+        </div>
+        <div class="hero-proof" aria-label="邻居反馈">
+          <strong>“昨天 6 点临时求助，8 分钟就有同楼栋邻居回应。”</strong>
+          <span>3 栋住户 安安</span>
+        </div>
+        <div class="hero-stats" aria-label="社区互助数据">
+          <div><strong>128</strong><span>次顺路帮忙</span></div>
+          <div><strong>36</strong><span>件工具共享</span></div>
+          <div><strong>92%</strong><span>当天响应</span></div>
+        </div>
         <span class="short-line" aria-hidden="true"></span>
       </div>
       <div class="hero-illustration" aria-label="原创社区生活插画">
@@ -287,6 +401,7 @@ function renderDiscover() {
       <div class="discover-tabs" role="tablist" aria-label="发现筛选">
         <button type="button" class="${discoverMode === "hot" ? "active" : ""}" data-discover-mode="hot">热门</button>
         <button type="button" class="${discoverMode === "latest" ? "active" : ""}" data-discover-mode="latest">最新</button>
+        <button type="button" class="${discoverMode === "chat" ? "active" : ""}" data-discover-mode="chat">邻友圈</button>
         <button type="button" class="${discoverMode === "search" ? "active" : ""}" data-discover-mode="search">搜索</button>
       </div>
       <div class="discover-tabs sub-tabs" role="tablist" aria-label="互助分类">
@@ -300,13 +415,15 @@ function renderDiscover() {
         ? posts
             .map(
               (item) => `
-            <article class="discover-card">
-              <div>
+            <article class="discover-card" data-open-post="${item.id}" tabindex="0" role="button" aria-label="打开帖子：${item.title}">
+              <img class="discover-avatar" src="${item.avatar || "https://randomuser.me/api/portraits/lego/1.jpg"}" alt="${item.author}的头像" loading="lazy" />
+              <div class="discover-card-body">
                 <p>${item.author} · ${item.time}</p>
                 <h2>${item.title}</h2>
                 <p>${item.text}</p>
+                <small>${item.count}</small>
               </div>
-              <span>${item.category === "offer" ? "帮助" : "求帮助"}</span>
+              <span>${categoryLabel(item.category)}</span>
             </article>
           `
             )
@@ -323,6 +440,177 @@ function renderDiscover() {
       </div>
     </section>
   `;
+}
+
+function findCommunityPost(id) {
+  return communityPosts.find((item) => item.id === id);
+}
+
+function ensurePostInteractions(post) {
+  if (!post) return null;
+  if (!post.comments) {
+    post.comments = [
+      { author: "孙嘉禾", text: post.category === "ask" ? "我看到了，时间合适的话可以帮你留意。" : "这个很实用，我先收藏一下。" },
+      { author: "何雅雯", text: "已私信你，具体楼栋和时间我们再确认。" },
+    ];
+  }
+  post.likes = post.likes ?? Math.max(3, Math.round(post.heat / 12));
+  post.favorites = post.favorites ?? Math.max(1, Math.round(post.heat / 20));
+  post.liked = Boolean(post.liked);
+  post.favorited = Boolean(post.favorited);
+  post.reported = Boolean(post.reported);
+  post.showReportForm = Boolean(post.showReportForm);
+  return post;
+}
+
+function renderPostDetail() {
+  const sheet = $("#postDetailSheet");
+  if (!sheet || !activePostId) return;
+  const post = ensurePostInteractions(findCommunityPost(activePostId));
+  if (!post) return;
+  sheet.innerHTML = `
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="post-detail-head">
+      <img class="discover-avatar" src="${post.avatar || "https://randomuser.me/api/portraits/lego/1.jpg"}" alt="${post.author}的头像" />
+      <div>
+        <p>${post.author} · ${post.time}</p>
+        <h2>${post.title}</h2>
+      </div>
+      <button type="button" class="round-close" data-action="close-post-detail" aria-label="关闭帖子详情">×</button>
+    </div>
+    <p class="post-detail-text">${post.text}</p>
+    <div class="post-detail-actions">
+      <button type="button" class="${post.liked ? "active" : ""}" data-post-action="like">点赞 ${post.likes}</button>
+      <button type="button" class="${post.favorited ? "active" : ""}" data-post-action="favorite">收藏 ${post.favorites}</button>
+      <button type="button" data-post-action="message">私信</button>
+      <button type="button" class="${post.reported ? "reported" : ""}" data-post-action="report">${post.reported ? "已投诉" : "投诉"}</button>
+    </div>
+    ${post.showReportForm ? renderPostReportForm(post) : ""}
+    <section class="post-comments" aria-label="评论">
+      <h3>评论</h3>
+      ${post.comments.map((comment) => `<div class="post-comment"><strong>${comment.author}</strong><p>${comment.text}</p></div>`).join("")}
+    </section>
+    <div class="post-comment-box">
+      <input id="postCommentInput" type="text" maxlength="80" placeholder="写一句友善的评论" />
+      <button type="button" data-action="send-post-comment">发送</button>
+    </div>
+  `;
+}
+
+function renderPostReportForm(post) {
+  const selectedUrgency = post.reportDraft?.urgency || reportUrgencyOptions[0];
+  return `
+    <section class="post-report-box" aria-label="填写投诉内容">
+      <div class="post-report-title">
+        <strong>投诉内容</strong>
+        <button type="button" data-action="cancel-post-report">取消</button>
+      </div>
+      <textarea id="postReportContent" rows="3" maxlength="180" placeholder="请描述你遇到的问题，平台会结合帖子内容一起处理。">${post.reportDraft?.content || ""}</textarea>
+      <div class="post-report-levels" role="radiogroup" aria-label="紧急级别">
+        ${reportUrgencyOptions
+          .map(
+            (level) => `
+              <label>
+                <input type="radio" name="postReportUrgency" value="${level}" ${selectedUrgency === level ? "checked" : ""} />
+                <span>${level}</span>
+              </label>
+            `
+          )
+          .join("")}
+      </div>
+      <button type="button" class="primary-action" data-action="submit-post-report">提交投诉</button>
+    </section>
+  `;
+}
+
+function openPostDetail(id) {
+  const post = findCommunityPost(id);
+  if (!post) return;
+  activePostId = id;
+  renderPostDetail();
+  $("#postDetailSheet")?.classList.add("open");
+  $("#sheetBackdrop")?.classList.add("open");
+}
+
+function closePostDetail() {
+  activePostId = null;
+  $("#postDetailSheet")?.classList.remove("open");
+  if (!$("#composeSheet")?.classList.contains("open") && !$("#profileSheet")?.classList.contains("open")) {
+    $("#sheetBackdrop")?.classList.remove("open");
+  }
+}
+
+function handlePostAction(action) {
+  const post = activePostId ? ensurePostInteractions(findCommunityPost(activePostId)) : null;
+  if (!post) return;
+  if (action === "message") {
+    openPostPrivateMessage(post);
+    return;
+  }
+  if (action === "like") {
+    post.liked = !post.liked;
+    post.likes += post.liked ? 1 : -1;
+  }
+  if (action === "favorite") {
+    post.favorited = !post.favorited;
+    post.favorites += post.favorited ? 1 : -1;
+  }
+  if (action === "report") post.showReportForm = true;
+  renderPostDetail();
+}
+
+function submitPostReport() {
+  const post = activePostId ? ensurePostInteractions(findCommunityPost(activePostId)) : null;
+  if (!post) return;
+  const content = $("#postReportContent")?.value.trim();
+  const urgency = document.querySelector('input[name="postReportUrgency"]:checked')?.value || reportUrgencyOptions[0];
+  if (!content) {
+    $("#postReportContent")?.focus();
+    return;
+  }
+  post.reported = true;
+  post.showReportForm = false;
+  post.reportDraft = { content, urgency };
+  post.comments.unshift({ author: "系统", text: `已收到投诉：${urgency}。平台会尽快核实。` });
+  renderPostDetail();
+}
+
+function cancelPostReport() {
+  const post = activePostId ? ensurePostInteractions(findCommunityPost(activePostId)) : null;
+  if (!post) return;
+  post.showReportForm = false;
+  renderPostDetail();
+}
+
+function openPostPrivateMessage(post) {
+  const chatId = `DM-${post.id}`;
+  if (!orders.some((item) => item.id === chatId)) {
+    orders.unshift({
+      id: chatId,
+      title: `私信 ${post.author}`,
+      desc: `来自发现帖子：${post.title}`,
+      status: "私信",
+      category: post.category || "chat",
+    });
+  }
+  if (!chats[chatId]) {
+    chats[chatId] = [
+      { role: "neighbor", text: `你好，我是${post.author}，关于这条帖子可以直接和我聊。` },
+    ];
+  }
+  closePostDetail();
+  activeChatId = chatId;
+  renderMessages();
+  showScreen("messages");
+}
+
+function sendPostComment() {
+  const post = activePostId ? ensurePostInteractions(findCommunityPost(activePostId)) : null;
+  const input = $("#postCommentInput");
+  const text = input?.value.trim();
+  if (!post || !text) return;
+  post.comments.push({ author: profileState.name || "我", text });
+  renderPostDetail();
 }
 
 function ToolItem(tool) {
@@ -455,6 +743,20 @@ function renderProfile() {
       <div><span>完成互助</span><strong>23</strong></div>
       <div><span>准时履约</span><strong>98%</strong></div>
       <div><span>近 30 天投诉</span><strong>0</strong></div>
+    </section>
+    <section class="profile-care-grid" aria-label="常用邻里服务">
+      <article>
+        <strong>我的求助</strong>
+        <p>查看正在等待回应的帖子，及时和邻居确认时间地点。</p>
+      </article>
+      <article>
+        <strong>我能帮忙</strong>
+        <p>管理顺路可帮、工具可借等帮助信息，让邻居更容易找到你。</p>
+      </article>
+      <article>
+        <strong>信任守护</strong>
+        <p>同小区认证、履约记录和投诉情况会帮助双方安心互助。</p>
+      </article>
     </section>
   `;
 }
@@ -609,7 +911,7 @@ function updateMobileAssistantSheet() {
   if (composeMode === "manual") {
     sheet.innerHTML = `
       <div>
-        <strong>${composeCategory === "ask" ? "手动发布求帮助" : "手动发布帮助"}</strong>
+        <strong>手动发布${categoryLabel(composeCategory)}</strong>
         <span>你填写的内容会直接同步到发现页，也会生成一条消息记录。</span>
       </div>
     `;
@@ -640,19 +942,20 @@ function publishManualPost() {
   if (!text) return;
   const post = {
     id: `post-${Date.now()}`,
-    title: composeCategory === "ask" ? "邻里求帮助" : "我可以帮助",
+    title: composeCategory === "chat" ? "邻友圈动态" : composeCategory === "ask" ? "邻里求帮助" : "我可以帮助",
     text,
     count: "等待回应",
     author: profileState.name,
+    avatar: currentUserPostAvatar(),
     time: "刚刚",
     heat: 98,
     category: composeCategory,
     source: "manual",
   };
   communityPosts.unshift(post);
-  createOrderFromTask({ title: post.title, desc: post.text, category: post.category }, false);
+  if (post.category !== "chat") createOrderFromTask({ title: post.title, desc: post.text, category: post.category }, false);
   closeCompose();
-  discoverMode = "latest";
+  discoverMode = post.category === "chat" ? "chat" : "latest";
   discoverCategory = post.category;
   renderDiscover();
   showScreen("discover");
@@ -671,10 +974,10 @@ async function publishAgentTask() {
     const result = await response.json();
     const post = buildPostFromAssistant(result, text);
     communityPosts.unshift({ ...post, id: `post-${Date.now()}`, source: "agent" });
-    createOrderFromTask({ title: post.title, desc: post.text, category: post.category }, false);
+    if (post.category !== "chat") createOrderFromTask({ title: post.title, desc: post.text, category: post.category }, false);
     assistantMessages.push({ role: "assistant", text: result.reply || "我已经帮你整理并发布到发现页。" });
     closeCompose();
-    discoverMode = "latest";
+    discoverMode = post.category === "chat" ? "chat" : "latest";
     discoverCategory = post.category;
     renderAssistant();
     renderDiscover();
@@ -685,37 +988,69 @@ async function publishAgentTask() {
 }
 
 function getDiscoverPosts() {
-  const source = communityPosts.filter((item) => item.category === discoverCategory);
+  const source = discoverMode === "search" ? communityPosts : communityPosts.filter((item) => item.category === (discoverMode === "chat" ? "chat" : discoverCategory));
   if (discoverMode === "latest") return [...source].sort((a, b) => Number(b.id.startsWith("post-")) - Number(a.id.startsWith("post-")) || b.heat - a.heat);
+  if (discoverMode === "chat") return [...source].sort((a, b) => b.heat - a.heat);
   if (discoverMode === "search") {
     const keyword = discoverSearch.trim();
     if (!keyword) return source;
-    return source.filter((item) => `${item.title}${item.text}${item.author}`.includes(keyword));
+    const normalizedKeyword = keyword.replace(/^#+/, "");
+    return source.filter((item) => {
+      const haystack = `${item.title}${item.text}${item.author}`;
+      return haystack.includes(keyword) || haystack.includes(normalizedKeyword);
+    });
   }
   return [...source].sort((a, b) => b.heat - a.heat);
 }
 
 function renderAssistant() {
   $("#screen-assistant").innerHTML = `
-    <header class="simple-header">
-      <div>
-        <p>AI 助手</p>
-        <h1>说一句话，匹配顺路互助</h1>
-      </div>
-      <button type="button" data-action="open-ai-compose">发布</button>
-    </header>
-    <section class="assistant-chat" id="assistantChatLog">
-      ${assistantMessages.map(AssistantBubble).join("")}
+    <section class="assistant-page-shell">
+      <header class="assistant-hero-header">
+        <div>
+          <p>AI 助手</p>
+          <h1>一句话说明情况，我帮你判断是求助还是帮助。</h1>
+          <span>比如取快递、接孩子、借工具，先聊清楚，再决定要不要发到发现页。</span>
+        </div>
+        <button type="button" data-action="open-ai-compose">发布</button>
+      </header>
+      <section class="assistant-example-row" aria-label="AI 助手示例">
+        <button type="button" data-assistant-example="我今天去中通快递站，有没有邻居要带快递的">我去快递站，可帮邻居带件</button>
+        <button type="button" data-assistant-example="我今天加班，没时间接孩子，有没有邻居下午6点帮忙接一下">我需要邻居帮忙接孩子</button>
+        <button type="button" data-assistant-example="谁有小推车可以借我搬两箱东西，半小时后还">我想借个工具</button>
+      </section>
+      <section class="assistant-workspace">
+        <div class="assistant-conversation-panel">
+          <section class="assistant-chat" id="assistantChatLog">
+            ${assistantMessages.map(AssistantBubble).join("")}
+          </section>
+          ${voiceStatusText ? `<p class="voice-status ${isRecordingVoice ? "listening" : ""}">${voiceStatusText}</p>` : ""}
+          <section class="assistant-composer">
+            <button type="button" class="voice-action ${isRecordingVoice ? "recording" : ""}" id="assistantVoice" aria-label="${isRecordingVoice ? "&#20572;&#27490;&#35821;&#38899;&#36755;&#20837;" : "&#35821;&#38899;&#36755;&#20837;"}" title="${isRecordingVoice ? "&#20572;&#27490;&#35821;&#38899;&#36755;&#20837;" : "&#35821;&#38899;&#36755;&#20837;"}">
+              ${icon("mic")}
+              <span>${isRecordingVoice ? "&#26494;&#24320;&#21457;&#36865;" : "&#25353;&#20303;&#35828;"}</span>
+            </button>
+            <input id="assistantInput" type="text" placeholder="例如：我今天去菜鸟驿站" />
+            <button type="button" class="primary-action" id="assistantSend">发送</button>
+          </section>
+        </div>
+        <section class="assistant-suggestions" id="assistantSuggestions">
+          ${pendingAssistantPost ? AssistantPublishCard(pendingAssistantPost) : ""}
+          ${assistantHelpers.map(AssistantHelperCard).join("")}
+          ${assistantSuggestions.map(AssistantHelpCard).join("")}
+          ${!pendingAssistantPost && !assistantHelpers.length && !assistantSuggestions.length ? AssistantEmptyState() : ""}
+        </section>
+      </section>
     </section>
-    <section class="assistant-suggestions" id="assistantSuggestions">
-      ${pendingAssistantPost ? AssistantPublishCard(pendingAssistantPost) : ""}
-      ${assistantHelpers.map(AssistantHelperCard).join("")}
-      ${assistantSuggestions.map(AssistantHelpCard).join("")}
-    </section>
-    <section class="assistant-composer">
-      <input id="assistantInput" type="text" placeholder="例如：我今天去菜鸟驿站" />
-      <button type="button" class="primary-action" id="assistantSend">发送</button>
-    </section>
+  `;
+}
+
+function AssistantEmptyState() {
+  return `
+    <article class="assistant-empty-card">
+      <strong>我会先理解你的意图</strong>
+      <p>你是想请邻居帮忙，还是你正好可以帮别人？说自然一点就行，我会帮你整理成帖子。</p>
+    </article>
   `;
 }
 
@@ -827,10 +1162,17 @@ function buildPostFromAssistant(result, text) {
     text: task.description || (isRequest ? `想请邻居帮忙从${location}取快递，可以免费或付费协商。` : `我今天会去${location}，如果有邻居需要顺手带快递，可以留言。`),
     count: "等待回应",
     author: profileState.name,
+    avatar: currentUserPostAvatar(),
     time: "刚刚",
     heat: 99,
     category: isRequest ? "ask" : "offer",
   };
+}
+
+function assistantSourceNote(result) {
+  if (result.source === "model") return "";
+  if (result.modelError) return `（当前使用本地规则：模型接口返回 ${result.modelError}）`;
+  return "（当前使用本地规则：未连接大模型）";
 }
 
 async function sendAssistantMessage(message) {
@@ -849,7 +1191,7 @@ async function sendAssistantMessage(message) {
     const result = await response.json();
     assistantMessages.pop();
     const targetText = result.intent?.type === "help_request" ? "下面是可能能帮忙的邻居" : "下面是可能顺路匹配的求助";
-    assistantMessages.push({ role: "assistant", text: `${result.reply || "我整理好了。"} ${targetText}。要不要我帮你发一条帖子，让邻居在发现里看到？` });
+    assistantMessages.push({ role: "assistant", text: `${result.reply || "我整理好了。"} ${targetText}。要不要我帮你发一条帖子，让邻居在发现里看到？${assistantSourceNote(result)}` });
     assistantSuggestions = result.nearbyRequests || [];
     assistantHelpers = result.nearbyHelpers || [];
     pendingAssistantPost = buildPostFromAssistant(result, text);
@@ -861,6 +1203,101 @@ async function sendAssistantMessage(message) {
     pendingAssistantPost = buildPostFromAssistant({}, text);
   }
 
+  renderAssistant();
+}
+
+function startAssistantVoice() {
+  if (isRecordingVoice || voiceRecognition) return;
+  isPressingVoice = true;
+  voiceStopRequested = false;
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Recognition) {
+    voiceStatusText = "\u5f53\u524d\u6d4f\u89c8\u5668\u6682\u4e0d\u652f\u6301\u8bed\u97f3\u8f93\u5165";
+    assistantMessages.push({ role: "assistant", text: "\u5f53\u524d\u6d4f\u89c8\u5668\u4e0d\u652f\u6301\u5185\u7f6e\u8bed\u97f3\u8bc6\u522b\uff0c\u8bf7\u7528 Chrome \u6216 Edge \u6253\u5f00\uff0c\u6216\u76f4\u63a5\u6253\u5b57\u53d1\u9001\u3002" });
+    renderAssistant();
+    return;
+  }
+  voiceRecognition = new Recognition();
+  voiceRecognition.lang = "zh-CN";
+  voiceRecognition.interimResults = true;
+  voiceRecognition.continuous = true;
+  voiceRecognition.lastTranscript = "";
+  voiceRecognition.addEventListener("start", () => {
+    isRecordingVoice = true;
+    voiceStatusText = "\u6309\u4f4f\u8bf4\u8bdd\uff0c\u677e\u5f00\u540e\u53d1\u9001...";
+    renderAssistant();
+  });
+  voiceRecognition.addEventListener("audiostart", () => {
+    voiceStatusText = "\u9ea6\u514b\u98ce\u5df2\u63a5\u5165\uff0c\u6309\u4f4f\u7ee7\u7eed\u8bf4...";
+    renderAssistant();
+  });
+  voiceRecognition.addEventListener("speechstart", () => {
+    voiceStatusText = "\u542c\u5230\u4f60\u8bf4\u8bdd\u4e86\uff0c\u677e\u5f00\u540e\u53d1\u9001...";
+    renderAssistant();
+  });
+  voiceRecognition.addEventListener("result", (event) => {
+    const transcript = Array.from(event.results, (result) => result[0]?.transcript || "")
+      .join("")
+      .trim();
+    if (!transcript) return;
+    voiceRecognition.lastTranscript = transcript;
+    voiceStatusText = "\u5df2\u8bc6\u522b\uff1a" + transcript + "\uff08\u677e\u5f00\u53d1\u9001\uff09";
+    renderAssistant();
+  });
+  voiceRecognition.addEventListener("error", (event) => {
+    const messages = {
+      "not-allowed": "\u6d4f\u89c8\u5668\u6ca1\u6709\u62ff\u5230\u9ea6\u514b\u98ce\u6743\u9650\uff0c\u8bf7\u5728\u5730\u5740\u680f\u5de6\u4fa7\u5141\u8bb8\u9ea6\u514b\u98ce\u540e\u518d\u8bd5\u3002",
+      "service-not-allowed": "\u6d4f\u89c8\u5668\u8bed\u97f3\u670d\u52a1\u88ab\u7981\u7528\uff0c\u8bf7\u6362 Chrome \u6216 Edge \u518d\u8bd5\u3002",
+      "audio-capture": "\u6ca1\u6709\u627e\u5230\u53ef\u7528\u9ea6\u514b\u98ce\uff0c\u8bf7\u68c0\u67e5\u7cfb\u7edf\u8f93\u5165\u8bbe\u5907\u3002",
+      "no-speech": "\u6ca1\u6709\u542c\u5230\u8bed\u97f3\uff0c\u8bf7\u9760\u8fd1\u9ea6\u514b\u98ce\u518d\u8bf4\u4e00\u904d\u3002",
+      network: "\u6d4f\u89c8\u5668\u8bed\u97f3\u8bc6\u522b\u670d\u52a1\u7f51\u7edc\u5931\u8d25\uff0c\u53ef\u80fd\u9700\u8981 Chrome/Edge \u80fd\u8fde\u5230\u5176\u8bed\u97f3\u670d\u52a1\u3002",
+      aborted: "\u8bed\u97f3\u8f93\u5165\u5df2\u505c\u6b62\u3002",
+    };
+    const message = messages[event.error] || ("\u8bed\u97f3\u6ca1\u6709\u8bc6\u522b\u6210\u529f\uff0c\u9519\u8bef\uff1a" + (event.error || "unknown"));
+    if (event.error !== "aborted" || !voiceStopRequested) assistantMessages.push({ role: "assistant", text: message });
+    voiceStatusText = "\u8bed\u97f3\u8f93\u5165\u5df2\u7ed3\u675f";
+    isRecordingVoice = false;
+    isPressingVoice = false;
+    voiceRecognition = null;
+    renderAssistant();
+  });
+  voiceRecognition.addEventListener("end", () => {
+    const transcript = voiceRecognition?.lastTranscript?.trim() || "";
+    isRecordingVoice = false;
+    isPressingVoice = false;
+    voiceRecognition = null;
+    if (transcript) {
+      voiceStatusText = "\u5df2\u53d1\u9001\u8bed\u97f3\u6587\u5b57\uff1a" + transcript;
+      sendAssistantMessage(transcript);
+      return;
+    }
+    voiceStatusText = voiceStopRequested ? "\u6ca1\u6709\u542c\u6e05\uff0c\u53ef\u4ee5\u957f\u6309\u518d\u8bf4\u4e00\u6b21" : voiceStatusText;
+    renderAssistant();
+  });
+  try {
+    voiceStatusText = "\u6b63\u5728\u5524\u8d77\u9ea6\u514b\u98ce...";
+    isRecordingVoice = true;
+    voiceRecognition.start();
+    renderAssistant();
+  } catch {
+    voiceStatusText = "\u8bed\u97f3\u8f93\u5165\u542f\u52a8\u5931\u8d25";
+    assistantMessages.push({ role: "assistant", text: "\u8bed\u97f3\u8f93\u5165\u6ca1\u6709\u542f\u52a8\u6210\u529f\uff0c\u8bf7\u786e\u8ba4\u6d4f\u89c8\u5668\u5141\u8bb8\u9ea6\u514b\u98ce\u6743\u9650\uff0c\u6216\u76f4\u63a5\u6253\u5b57\u53d1\u9001\u3002" });
+    isRecordingVoice = false;
+    isPressingVoice = false;
+    voiceRecognition = null;
+    renderAssistant();
+  }
+}
+
+function stopAssistantVoice() {
+  if (!voiceRecognition) return;
+  voiceStopRequested = true;
+  voiceStatusText = "\u6b63\u5728\u6574\u7406\u521a\u624d\u542c\u5230\u7684\u5185\u5bb9...";
+  try {
+    voiceRecognition.stop();
+  } catch {
+    voiceRecognition.abort();
+  }
   renderAssistant();
 }
 
@@ -978,6 +1415,12 @@ function borrowTool(id) {
 
 function bindEvents() {
   document.body.addEventListener("click", (event) => {
+    const postCard = event.target.closest("[data-open-post]");
+    if (postCard && !event.target.closest("button")) {
+      openPostDetail(postCard.dataset.openPost);
+      return;
+    }
+
     const button = event.target.closest("button");
     if (!button) return;
 
@@ -1004,11 +1447,24 @@ function bindEvents() {
       }
     }
     if (button.id === "assistantSend") sendAssistantMessage($("#assistantInput").value);
+    if (button.id === "assistantVoice") return;
     if (button.id === "privateChatSend") sendPrivateChat();
+
+    if (button.dataset.assistantExample) {
+      const input = $("#assistantInput");
+      if (input) {
+        input.value = button.dataset.assistantExample;
+        input.focus();
+      }
+    }
 
     const quickId = button.dataset.quickId;
     if (quickId) {
       const item = data.quickActions.find((entry) => entry.id === quickId);
+      if (quickTopicSearches[quickId]) {
+        showSearchPlaceholder(quickTopicSearches[quickId]);
+        return;
+      }
       if (item?.compose) openCompose();
       if (item?.target) showScreen(item.target);
     }
@@ -1023,11 +1479,16 @@ function bindEvents() {
     if (action === "borrow-first") borrowTool("tool-1");
     if (action === "simulate-order") createOrderFromTask({ title: "周六散步局提醒", desc: "阿树邀请你加入 19:30 的河堤散步局。", category: "offer" });
     if (action === "create-order") createOrderFromTask();
+    if (action === "close-post-detail") closePostDetail();
+    if (action === "send-post-comment") sendPostComment();
+    if (action === "submit-post-report") submitPostReport();
+    if (action === "cancel-post-report") cancelPostReport();
     if (action === "close-chat") {
       activeChatId = null;
       renderMessages();
     }
 
+    if (button.dataset.postAction) handlePostAction(button.dataset.postAction);
     if (button.dataset.borrowId) borrowTool(button.dataset.borrowId);
     if (button.dataset.nextOrder) button.textContent = "已读";
     if (button.dataset.openChat) openPrivateChat(button.dataset.openChat);
@@ -1055,10 +1516,42 @@ function bindEvents() {
     }
   });
 
+  document.body.addEventListener("pointerdown", (event) => {
+    const button = event.target.closest("#assistantVoice");
+    if (!button) return;
+    event.preventDefault();
+    button.setPointerCapture?.(event.pointerId);
+    startAssistantVoice();
+  });
+
+  document.body.addEventListener("pointerup", (event) => {
+    const button = event.target.closest("#assistantVoice");
+    if (!button && !isPressingVoice) return;
+    event.preventDefault();
+    stopAssistantVoice();
+  });
+
+  document.body.addEventListener("pointercancel", () => {
+    if (isPressingVoice) stopAssistantVoice();
+  });
+
   document.body.addEventListener("keydown", (event) => {
+    const postCard = event.target.closest?.("[data-open-post]");
+    if (postCard && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      openPostDetail(postCard.dataset.openPost);
+      return;
+    }
+
     if (event.key !== "Enter" || event.target?.id !== "assistantInput") return;
     event.preventDefault();
     sendAssistantMessage(event.target.value);
+  });
+
+  document.body.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.target?.id !== "postCommentInput") return;
+    event.preventDefault();
+    sendPostComment();
   });
 
   document.body.addEventListener("keydown", (event) => {
@@ -1081,6 +1574,7 @@ function bindEvents() {
   $("#sheetBackdrop").addEventListener("click", () => {
     closeCompose();
     closeProfileEditor();
+    closePostDetail();
   });
 
   $("#avatarInput").addEventListener("change", (event) => {
@@ -1103,10 +1597,16 @@ function bindEvents() {
   });
 }
 
-function showSearchPlaceholder() {
+function showSearchPlaceholder(keyword = "") {
   discoverMode = "search";
+  discoverSearch = keyword;
   showScreen("discover");
   renderDiscover();
+  const search = $("#discoverSearch");
+  if (search) {
+    search.focus();
+    search.setSelectionRange(search.value.length, search.value.length);
+  }
   const first = $("#screen-discover .discover-card");
   if (first) {
     first.classList.add("highlight");

@@ -146,14 +146,27 @@
             <div>
               <p class="eyebrow">AI Assistant</p>
               <h3>对话式邻里助手</h3>
-              <p>说一句顺路计划，AI 会匹配附近求助，并整理成可发布到发现页的帖子。</p>
+              <p>说一句自然话，AI 会先判断你是在求帮助还是提供帮助，再匹配附近邻居和整理帖子。</p>
             </div>
           </div>
           <section class="desktop-assistant">
+            <div class="desktop-assistant-intro">
+              <strong>不用想表单怎么填，先把情况说清楚。</strong>
+              <span>例如“我今天去中通快递站，有没有邻居要带快递的”是提供帮助；“我加班没时间接孩子”是求帮助。</span>
+              <div class="desktop-example-row">
+                <button type="button" data-desktop-example="我今天去中通快递站，有没有邻居要带快递的">顺路帮带快递</button>
+                <button type="button" data-desktop-example="我今天加班，没时间接孩子，有没有邻居下午6点帮忙接一下">求助接孩子</button>
+                <button type="button" data-desktop-example="谁有小推车可以借我搬两箱东西，半小时后还">借用小工具</button>
+              </div>
+            </div>
             <div class="assistant-chat-panel">
               <div id="desktopAssistantLog" class="desktop-chat-log"></div>
               <div id="desktopAssistantSuggestions" class="desktop-suggestions"></div>
               <div class="desktop-chat-composer">
+                <button class="voice-button" id="desktopAssistantVoice" type="button" aria-label="&#35821;&#38899;&#36755;&#20837;" title="&#35821;&#38899;&#36755;&#20837;">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/><path d="M8 22h8"/></svg>
+                  <span>&#35821;&#38899;</span>
+                </button>
                 <input id="desktopAssistantInput" type="text" placeholder="例如：我今天去中通快递站，有没有邻居要带快递的" />
                 <button class="primary-button" id="desktopAssistantSend">发送</button>
               </div>
@@ -173,6 +186,7 @@
             <div class="discover-tabs">
               <button class="active" data-discover-mode="hot" type="button">热门</button>
               <button data-discover-mode="latest" type="button">最新</button>
+              <button data-discover-mode="chat" type="button">邻友圈</button>
               <button data-discover-mode="search" type="button">搜索</button>
             </div>
             <div class="discover-tabs sub-tabs">
@@ -217,6 +231,9 @@
         <p></p>
       </div>
     </template>
+
+    <div class="desktop-post-overlay" id="desktopPostOverlay" aria-hidden="true"></div>
+    <aside class="desktop-post-panel" id="desktopPostPanel" aria-label="帖子详情" aria-live="polite"></aside>
 
     <script src="./app.js"></script>
   </body>

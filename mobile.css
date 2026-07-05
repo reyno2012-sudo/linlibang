@@ -149,7 +149,7 @@ svg {
   left: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   align-items: end;
   width: min(calc(100% - 32px), 428px);
   min-height: 72px;
@@ -255,7 +255,8 @@ svg {
 }
 
 .compose-sheet,
-.profile-sheet {
+.profile-sheet,
+.post-detail-sheet {
   position: fixed;
   right: 0;
   bottom: 0;
@@ -275,7 +276,8 @@ svg {
 }
 
 .compose-sheet.open,
-.profile-sheet.open {
+.profile-sheet.open,
+.post-detail-sheet.open {
   transform: translateY(0);
 }
 
@@ -342,6 +344,158 @@ textarea {
 
 .profile-sheet {
   gap: 16px;
+}
+
+.post-detail-sheet {
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.post-detail-head {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 40px;
+  gap: 12px;
+  align-items: start;
+}
+
+.post-detail-head p,
+.post-detail-text,
+.post-comment p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.post-detail-head h2 {
+  margin: 4px 0 0;
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.post-detail-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.post-detail-actions button,
+.post-comment-box button {
+  min-height: 40px;
+  border-radius: 999px;
+  background: #fff8ea;
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.post-detail-actions button.active {
+  background: linear-gradient(145deg, #ffca45, #ff9f87);
+  color: #fffdfc;
+}
+
+.post-detail-actions button.reported {
+  background: #f3ebe2;
+  color: var(--text-secondary);
+}
+
+.post-report-box {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(240, 90, 80, 0.18);
+  border-radius: 18px;
+  background: #fff8f5;
+}
+
+.post-report-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.post-report-title strong {
+  font-size: 15px;
+}
+
+.post-report-title button {
+  min-height: 32px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: #f3ebe2;
+  color: var(--text-secondary);
+  font-weight: 800;
+}
+
+.post-report-box textarea {
+  min-height: 92px;
+  border-radius: 16px;
+  background: #fffdfc;
+}
+
+.post-report-levels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.post-report-levels label {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 38px;
+  border-radius: 999px;
+  background: #fffdfc;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.post-report-levels label:has(input:checked) {
+  background: linear-gradient(145deg, #ffca45, #ff9f87);
+  color: #fffdfc;
+}
+
+.post-report-levels input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.post-comments {
+  display: grid;
+  gap: 10px;
+}
+
+.post-comments h3 {
+  margin: 0;
+}
+
+.post-comment {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--bg-soft);
+}
+
+.post-comment strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.post-comment-box {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px;
+  gap: 8px;
+}
+
+.post-comment-box input {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  outline: none;
+  background: #fff9f1;
+  color: var(--text-primary);
+  font: inherit;
 }
 
 .profile-editor-preview {
@@ -441,11 +595,18 @@ textarea {
 .compose-mode,
 .compose-type {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
   padding: 6px;
   border-radius: 18px;
   background: var(--bg-soft);
+}
+
+.compose-mode {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.compose-type {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .compose-mode button,
@@ -506,6 +667,26 @@ textarea {
   .bottom-tabs {
     width: min(calc(100% - 24px), 420px);
     padding-inline: 10px;
+  }
+}
+
+@media (min-width: 900px) {
+  .phone-app {
+    width: min(calc(100% - 96px), 1120px);
+    padding: 28px 32px calc(118px + env(safe-area-inset-bottom));
+    overflow: visible;
+  }
+
+  .bottom-tabs {
+    width: min(calc(100% - 96px), 720px);
+    min-height: 76px;
+    padding-inline: 18px;
+  }
+
+  .compose-sheet,
+  .profile-sheet,
+  .post-detail-sheet {
+    width: min(calc(100% - 96px), 720px);
   }
 }
 
