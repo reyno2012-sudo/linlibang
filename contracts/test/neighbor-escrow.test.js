@@ -90,7 +90,7 @@ test("rejects repeat release", async (t) => {
   await (await escrow.connect(helper).acceptTask(taskId)).wait();
   await (await escrow.connect(helper).markCompleted(taskId)).wait();
   await (await escrow.connect(requester).approveAndRelease(taskId)).wait();
-  await assert.rejects(escrow.connect(requester).approveAndRelease(taskId));
+  await assert.rejects(async () => (await escrow.connect(requester).approveAndRelease(taskId)).wait());
   assert.equal(Number((await escrow.tasks(taskId)).status), 3);
 });
 
