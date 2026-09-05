@@ -17,5 +17,6 @@ test("deployment page uses an injected wallet and verifies deployed bytecode", (
   assert.match(js, /getCode/);
   assert.match(js, /neighbortrust_contract_address/);
   assert.match(config, /neighbortrust_contract_address/);
+  assert.match(config, /0x999531e68550e708F5D460b581C18A737FEE2D1c/);
   assert.doesNotMatch(`${html}\n${js}\n${config}`, /PRIVATE_KEY|privateKey|mnemonic/);
 });

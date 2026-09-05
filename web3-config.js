@@ -1,9 +1,9 @@
 (function configureNeighborTrust(root) {
   function savedContractAddress() {
     try {
-      return root.localStorage?.getItem("neighbortrust_contract_address") || "";
+      return root.localStorage?.getItem("neighbortrust_contract_address") || "0x999531e68550e708F5D460b581C18A737FEE2D1c";
     } catch {
-      return "";
+      return "0x999531e68550e708F5D460b581C18A737FEE2D1c";
     }
   }
 

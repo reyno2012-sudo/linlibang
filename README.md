@@ -71,6 +71,8 @@ npm test
 
 本功能只用于黑客松测试网，请勿使用真实资产。先安装 MetaMask 等 EVM 钱包，并准备少量 Monad Testnet 的 Test MON。
 
+已部署并完成字节码核验的测试网合约：[`0x999531e68550e708F5D460b581C18A737FEE2D1c`](https://testnet.monadscan.com/address/0x999531e68550e708F5D460b581C18A737FEE2D1c)。新访客可直接使用；下面的部署页仅用于需要重新部署合约时操作。
+
 1. 打开 [部署页面](http://127.0.0.1:3001/deploy-contract.html)。
 2. 点击“连接钱包并部署”，在钱包中切换/添加 Monad Testnet 并确认部署。
 3. 页面会读取链上字节码进行校验，并把合约地址只保存在当前浏览器的 `localStorage`。
