@@ -13,6 +13,9 @@
 - 候选人匹配：按信用分、准入资格、证书标签、距离、报价、响应速度排序。
 - 订单流转：待确认、已接单、服务中、待验收、已完成、争议中。
 - 后端 API：Node.js 原生 HTTP 服务，无需安装第三方依赖，JSON 文件持久化。
+- NeighborTrust 智能合约：在 Monad Testnet 托管 Test MON，支持接单、完成、验收放款、取消退款与争议冻结。
+- Web3 钱包体验：移动端连接 EVM 钱包，区分“已提交 / 安全确认 / 最终确认”，并可跳转 Monad 浏览器查证。
+- 隐私分层：链上只记录任务摘要哈希、参与钱包、金额和状态，住址、电话、聊天与履约照片不上链。
 
 ## 风控策略摘要
 
@@ -60,6 +63,26 @@ npm test
 - 安全投诉扣分并关闭高危权限
 - 移动端任务字段可编辑
 - 移动端信用/安全规则展示
+- Solidity 托管状态机、权限、重复放款与争议测试
+- 钱包错误、Monad 最终性、10% Gas 上限和隐私摘要测试
+- 订单链上凭证校验与移动端 Web3 UI 测试
+
+## Monad 测试网演示
+
+本功能只用于黑客松测试网，请勿使用真实资产。先安装 MetaMask 等 EVM 钱包，并准备少量 Monad Testnet 的 Test MON。
+
+1. 打开 [部署页面](http://127.0.0.1:3001/deploy-contract.html)。
+2. 点击“连接钱包并部署”，在钱包中切换/添加 Monad Testnet 并确认部署。
+3. 页面会读取链上字节码进行校验，并把合约地址只保存在当前浏览器的 `localStorage`。
+4. 返回 [移动端](http://127.0.0.1:3001/mobile.html)，发布工单后进入消息页，点击“创建链上托管”。
+
+部署过程不读取、不保存私钥或助记词。合约使用任务摘要哈希而不是全局递增序号，减少 Monad 并行执行时的共享存储竞争；交易 Gas Limit 仅增加 10% 缓冲。
+
+如修改合约，重新生成构建产物：
+
+```powershell
+npm run contract:compile
+```
 
 ## API 概览
 
@@ -78,6 +101,7 @@ POST   /api/users/:id/credit-events
 PATCH  /api/orders/:id/advance
 PATCH  /api/orders/:id/evidence
 PATCH  /api/orders/:id/dispute
+PATCH  /api/orders/:id/chain
 POST   /api/tools/:id/borrow
 ```
 

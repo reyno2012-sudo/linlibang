@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>部署 NeighborEscrow · 邻里帮</title>
+    <style>
+      :root { color-scheme: light; font-family: Inter, "PingFang SC", system-ui, sans-serif; color: #241f1b; background: #f8f3ea; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 15% 10%, #ffd9d4, transparent 35%), radial-gradient(circle at 85% 15%, #dff2d0, transparent 32%), #f8f3ea; }
+      main { width: min(620px, 100%); padding: 34px; border: 1px solid rgba(45, 39, 34, .08); border-radius: 28px; background: rgba(255,255,255,.82); box-shadow: 0 24px 70px rgba(76,59,45,.13); backdrop-filter: blur(18px); }
+      .eyebrow { color: #43845b; font-weight: 800; letter-spacing: .08em; }
+      h1 { margin: 9px 0 12px; font-size: clamp(28px, 7vw, 44px); line-height: 1.08; }
+      p { color: #6d655e; line-height: 1.7; }
+      .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 24px 0; }
+      .facts div { padding: 13px; border-radius: 15px; background: #f5f0ff; }
+      .facts small { display: block; color: #817890; }
+      .facts strong { display: block; margin-top: 5px; color: #453b79; }
+      button { width: 100%; border: 0; border-radius: 15px; padding: 15px; color: white; background: #3d7452; font-size: 16px; font-weight: 800; cursor: pointer; }
+      button:disabled { opacity: .55; cursor: wait; }
+      #status { min-height: 28px; margin-top: 14px; font-weight: 700; color: #3d7452; word-break: break-all; }
+      .warning { padding: 13px 15px; border-radius: 14px; background: #fff4da; color: #7f6124; font-size: 13px; }
+      a { color: #453b79; font-weight: 750; }
+      @media (max-width: 520px) { main { padding: 24px; } .facts { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <span class="eyebrow">NEIGHBORTRUST · MONAD</span>
+      <h1>部署 NeighborEscrow</h1>
+      <p>这是黑客松测试网部署页。点击后由你的钱包签名部署，页面不会读取或保存钱包密钥。</p>
+      <div class="facts">
+        <div><small>网络</small><strong>Monad Testnet</strong></div>
+        <div><small>Chain ID</small><strong>10143</strong></div>
+        <div><small>合约</small><strong>NeighborEscrow</strong></div>
+      </div>
+      <p class="warning">需要浏览器钱包和少量 Test MON。部署完成后，本浏览器会自动记住合约地址，返回移动端即可创建托管任务。</p>
+      <button id="deploy" type="button">连接钱包并部署</button>
+      <p id="status" aria-live="polite"></p>
+      <a href="./mobile.html">← 返回邻里帮移动端</a>
+    </main>
+    <script src="./node_modules/ethers/dist/ethers.umd.min.js"></script>
+    <script src="./web3-config.js"></script>
+    <script src="./deploy-contract.js"></script>
+  </body>
+</html>

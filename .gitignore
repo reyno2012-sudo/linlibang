@@ -1,3 +1,6 @@
 node_modules/
+contracts/artifacts/*.json
+!contracts/artifacts/NeighborEscrow.json
 server/data/*.json
 *.log
+.env
