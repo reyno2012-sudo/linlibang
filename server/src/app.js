@@ -189,4 +189,4 @@ function createApp(options = {}) {
   return { server, store, config };
 }
 
-module.exports = { createApp };
+module.exports = { createApp, routeApi };

@@ -4,3 +4,4 @@ contracts/artifacts/*.json
 server/data/*.json
 *.log
 .env
+.vercel/
