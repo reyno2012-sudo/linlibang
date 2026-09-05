@@ -14,11 +14,23 @@ let assistantMessages = [
 let assistantSuggestions = [];
 let assistantHelpers = [];
 let pendingAssistantPost = null;
+let voiceRecognition = null;
+let isRecordingVoice = false;
+let voiceStatusText = "";
+let isPressingVoice = false;
+let voiceStopRequested = false;
 let discoverMode = "hot";
 let discoverCategory = "ask";
 let discoverSearch = "";
 let composeMode = "manual";
 let composeCategory = "ask";
+let selectedErrandServiceId = data.errandServices?.[0]?.id || "";
+let showAllCirclePosts = false;
+let showFullCreditRanking = false;
+let activeProofType = "identity";
+let creditProofResult = null;
+let suppressNextAvatarUploadClick = false;
+let avatarDragState = null;
 const communityPosts = data.discoverCards.map((item, index) => ({
   id: `seed-${index}`,
   title: item.title,
@@ -33,6 +45,15 @@ const communityPosts = data.discoverCards.map((item, index) => ({
 let messageMode = "all";
 let activeChatId = null;
 const chats = {};
+let web3Client = null;
+let web3Artifact = null;
+let activeEscrowOrderId = null;
+const walletState = {
+  account: "",
+  balance: "",
+  phase: "idle",
+  message: "",
+};
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -96,9 +117,10 @@ function loadProfile() {
     return {
       name: saved.name || data.user.name,
       avatar: saved.avatar || "",
+      avatarPosition: saved.avatarPosition || { x: 50, y: 50 },
     };
   } catch {
-    return { name: data.user.name, avatar: "" };
+    return { name: data.user.name, avatar: "", avatarPosition: { x: 50, y: 50 } };
   }
 }
 
@@ -106,18 +128,29 @@ function saveProfileState(nextProfile) {
   profileState = {
     name: nextProfile.name?.trim() || data.user.name,
     avatar: nextProfile.avatar || profileState.avatar,
+    avatarPosition: nextProfile.avatarPosition || profileState.avatarPosition || { x: 50, y: 50 },
   };
   localStorage.setItem(profileStorageKey, JSON.stringify(profileState));
 }
 
+function avatarPositionStyle() {
+  const position = profileState.avatarPosition || { x: 50, y: 50 };
+  return `style="--avatar-position: ${position.x}% ${position.y}%; object-position: ${profileState.avatarPosition.x}% ${profileState.avatarPosition.y}%;"`;
+}
+
 function AvatarContent(className = "") {
   if (profileState.avatar) {
-    return `<img class="${className}" src="${profileState.avatar}" alt="${profileState.name}的头像" />`;
+    return `<img class="${className}" src="${profileState.avatar}" alt="${profileState.name}的头像" ${avatarPositionStyle()} />`;
   }
   return `<span>${profileState.name.slice(0, 1)}</span>`;
 }
 
 function HomeHeader() {
+  const walletLabel = walletState.account
+    ? window.NeighborWeb3.shortAddress(walletState.account)
+    : walletState.phase === "connecting"
+      ? "连接中…"
+      : "连接钱包";
   return `
     <header class="home-header">
       <button class="profile-chip" type="button" data-action="edit-profile" aria-label="编辑头像和昵称">
@@ -128,6 +161,9 @@ function HomeHeader() {
         </div>
       </button>
       <div class="top-actions" aria-label="快捷操作">
+        <button type="button" class="wallet-button ${walletState.account ? "connected" : ""}" data-action="connect-wallet" aria-label="连接 Monad 钱包">
+          <span class="wallet-dot"></span>${walletLabel}
+        </button>
         <button type="button" class="icon-button has-dot" data-action="notify" aria-label="通知">${icon("bell")}</button>
         <button type="button" class="icon-button" data-action="search" aria-label="搜索">${icon("search")}</button>
       </div>
@@ -139,11 +175,10 @@ function HeroSection() {
   return `
     <section class="hero-section">
       <div class="hero-copy">
-        <h1>远亲不如近邻，<br />省心省力邻里帮。</h1>
+        <h1>远亲不如近邻，<br />省心省力<span class="hero-brand-name">邻里帮</span>。</h1>
         <span class="short-line" aria-hidden="true"></span>
       </div>
       <div class="hero-illustration" aria-label="原创社区生活插画">
-        <div class="sky-note">今天的风，很舒服 ☁️</div>
         <div class="balcony-rail"></div>
         <div class="window-glow"></div>
         <div class="notice-board">
@@ -176,22 +211,30 @@ function QuickActionCard(item) {
   `;
 }
 
+function NearbyAvatar(post) {
+  if (post.avatar && post.avatar.includes("/")) {
+    return `<img class="mini-avatar-image" src="${post.avatar}" alt="${escapeHtml(post.name)}的头像" loading="lazy" />`;
+  }
+  return `<span class="mini-avatar avatar-${post.avatar}" aria-hidden="true"></span>`;
+}
+
 function NearbyPostCard(post) {
-  const visual = post.visual ? `<div class="post-visual visual-${post.visual}" aria-hidden="true"></div>` : `<div class="post-status">${post.meta}</div>`;
+  const status = post.count || post.meta || "";
   return `
     <article class="nearby-card">
       <div class="mini-profile">
-        <span class="mini-avatar avatar-${post.avatar}" aria-hidden="true"></span>
+        ${NearbyAvatar(post)}
         <div>
-          <strong>${post.name}</strong>
-          <small>${post.time}</small>
+          <strong>${escapeHtml(post.name)}</strong>
+          <small>${escapeHtml(post.time)}</small>
         </div>
       </div>
-      <p>${post.text}</p>
-      ${visual}
+      ${post.title ? `<strong class="nearby-title">${escapeHtml(post.title)}</strong>` : ""}
+      <p>${escapeHtml(post.text)}</p>
+      ${status ? `<div class="post-status">${escapeHtml(status)}</div>` : ""}
       <div class="post-foot">
-        <span>${post.tag}</span>
-        <span>${post.meta}</span>
+        <span>${escapeHtml(post.tag)}</span>
+        <span>${escapeHtml(status)}</span>
       </div>
     </article>
   `;
@@ -270,6 +313,187 @@ function renderHome() {
     </section>
     <section class="agent-result" id="agentResult"></section>
     ${NearbySection()}
+  `;
+}
+
+function selectedErrandService() {
+  return data.errandServices.find((service) => service.id === selectedErrandServiceId) || data.errandServices[0];
+}
+
+function selectedErrandRule() {
+  const service = selectedErrandService();
+  const ruleId = service?.ruleId || service?.id || selectedErrandServiceId;
+  return data.errandServiceRules.find((rule) => rule.id === ruleId) || data.errandServiceRules[0];
+}
+
+function ServiceRuleList(title, items) {
+  return `
+    <div class="service-rule-list">
+      <h3>${escapeHtml(title)}</h3>
+      <ul>
+        ${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+      </ul>
+    </div>
+  `;
+}
+
+function renderErrandRuleSheet() {
+  const service = selectedErrandService();
+  const rule = selectedErrandRule();
+  $("#errandRuleBody").innerHTML = `
+    <article class="service-rule-block">
+      <div class="service-rule-kicker">
+        <span>${escapeHtml(service.risk)}</span>
+        <strong>${escapeHtml(service.price)}</strong>
+      </div>
+      <h3>${escapeHtml(rule.title)}</h3>
+      <p>${escapeHtml(rule.summary)}</p>
+      ${ServiceRuleList("标准说明", rule.standards)}
+      ${ServiceRuleList("下单流程", rule.flow)}
+      ${ServiceRuleList("风险边界", rule.warnings)}
+    </article>
+  `;
+}
+
+function ErrandServiceCard(service) {
+  const active = service.id === selectedErrandServiceId;
+  return `
+    <button class="errand-service-card ${active ? "active" : ""}" type="button" data-errand-service-id="${service.id}">
+      <div>
+        <span>${escapeHtml(service.reward)}</span>
+        <h2>${escapeHtml(service.title)}</h2>
+        <p>${escapeHtml(service.desc)}</p>
+      </div>
+      <strong>${escapeHtml(service.price)}</strong>
+      <small>${escapeHtml(service.risk)}</small>
+    </button>
+  `;
+}
+
+function renderErrandServices() {
+  const service = selectedErrandService();
+  $("#screen-errand").innerHTML = `
+    <header class="simple-header">
+      <div>
+        <p>跑腿互助</p>
+        <h1>闲置时间，帮点小忙</h1>
+      </div>
+      <button type="button" data-action="back-home">返回</button>
+    </header>
+    <section class="errand-hero">
+      <div>
+        <span>服务本社区 · 平台留痕</span>
+        <h2>把小事交给附近可信邻居</h2>
+        <p>代取快递、门口垃圾、周边取送、买东西、带饭和简单维修，都可以走平台托管和信用筛选。</p>
+      </div>
+    </section>
+    <section class="errand-service-list" aria-label="跑腿互助服务">
+      ${data.errandServices.map(ErrandServiceCard).join("")}
+    </section>
+    <section class="errand-order-form" aria-label="跑腿下单信息">
+      <div class="section-head">
+        <h2>${escapeHtml(service.title)}</h2>
+        <button type="button" data-action="show-errand-rule">规则说明</button>
+      </div>
+      <div class="errand-field-grid">
+        <label><span>联系人</span><input id="errandContact" type="text" placeholder="怎么称呼你" /></label>
+        <label><span>手机号</span><input id="errandPhone" type="tel" placeholder="用于邻居联系" /></label>
+        <label><span>地址/房号</span><input id="errandAddress" type="text" placeholder="如 3 栋 1202" /></label>
+        <label><span>期望时间</span><input id="errandTime" type="text" placeholder="如 今晚 7 点前" /></label>
+      </div>
+      <label class="errand-note">
+        <span>备注和凭证</span>
+        <textarea id="errandNote" rows="3" placeholder="${service.fields.map(escapeHtml).join(" / ")}，也可以补充取件码、忌口、照片说明。"></textarea>
+      </label>
+      <div class="errand-safety-note">
+        <strong>${escapeHtml(service.note)}</strong>
+        <p>平台建议选择高信用邻居接单，完成时上传照片，资金确认后再结算。</p>
+      </div>
+    </section>
+    <section class="errand-submit-bar">
+      <div>
+        <span>预估费用</span>
+        <strong>${escapeHtml(service.price)}</strong>
+      </div>
+      <button type="button" class="primary-action" id="errandOrderSubmit">确认下单</button>
+    </section>
+  `;
+}
+
+function CircleAvatar(name, avatar) {
+  return `<img class="circle-avatar" src="${avatar}" alt="${escapeHtml(name)}的头像" loading="lazy" />`;
+}
+
+function CircleReply(reply) {
+  return `
+    <article class="circle-reply">
+      ${CircleAvatar(reply.name, reply.avatar)}
+      <div>
+        <strong>${escapeHtml(reply.name)}</strong>
+        <p>${escapeHtml(reply.text)}</p>
+      </div>
+    </article>
+  `;
+}
+
+function CirclePostCard(post) {
+  const visibleReplies = post.replies.slice(0, 3);
+  const hiddenReplyCount = post.replies.length - visibleReplies.length;
+  return `
+    <article class="circle-post-card">
+      <div class="circle-post-head">
+        ${CircleAvatar(post.author.name, post.author.avatar)}
+        <div class="circle-post-meta">
+          <strong>${escapeHtml(post.author.name)}</strong>
+          <small>回复于 ${escapeHtml(post.time)}</small>
+        </div>
+        <span>${escapeHtml(post.category)}</span>
+      </div>
+      <h2 class="circle-post-title">${escapeHtml(post.title)}</h2>
+      <p class="circle-post-content">${escapeHtml(post.content)}</p>
+      <div class="circle-post-stats" aria-label="帖子互动">
+        <span>分享</span>
+        <span>回复 ${post.replies.length}</span>
+        <span>赞 ${post.tags.length + post.replies.length}</span>
+      </div>
+      <div class="circle-replies">
+        ${visibleReplies.map(CircleReply).join("")}
+        ${hiddenReplyCount > 0 ? `<small>还有 ${hiddenReplyCount} 条回复</small>` : ""}
+      </div>
+      <div class="circle-reply-form">
+        <input type="text" data-circle-reply-input="${post.id}" placeholder="回复 ${escapeHtml(post.author.name)} 或加入讨论" />
+        <button type="button" class="small-action" data-reply-circle-post="${post.id}">回复</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderCircleBbs() {
+  const visiblePosts = showAllCirclePosts ? data.circlePosts : data.circlePosts.slice(0, 6);
+  $("#screen-circle").innerHTML = `
+    <header class="simple-header circle-header">
+      <div>
+        <p>邻里动态</p>
+        <h1>社区 BBS</h1>
+      </div>
+      <button type="button" data-action="toggle-circle-posts">${showAllCirclePosts ? "收起" : "查看更多"}</button>
+    </header>
+    <section class="circle-composer">
+      <div>
+        <strong>发一条非交易动态</strong>
+        <p>约跑步、骑行搭子、闲置赠送、美食交流、居住环境讨论都可以。</p>
+      </div>
+      <textarea id="circlePostInput" rows="3" placeholder="今天想和邻居聊点什么？"></textarea>
+      <button type="button" class="primary-action" id="circlePublish">发布帖子</button>
+    </section>
+    <section class="circle-bbs-list">
+      ${visiblePosts.map(CirclePostCard).join("")}
+    </section>
+    ${
+      data.circlePosts.length > 6
+        ? `<button type="button" class="circle-more-button" data-action="toggle-circle-posts">${showAllCirclePosts ? "收起帖子" : `查看更多，展开全部 ${data.circlePosts.length} 条`}</button>`
+        : ""
+    }
   `;
 }
 
@@ -354,6 +578,7 @@ function renderMessages() {
                 <p>${order.id}</p>
                 <h2>${order.title}</h2>
                 <span>${order.desc}</span>
+                ${EscrowPanel(order)}
               </div>
               <button type="button" class="small-action" data-open-chat="${order.id}">私聊</button>
             </article>
@@ -377,6 +602,140 @@ function renderMessages() {
     </section>
     <section class="message-list">${content}</section>
   `;
+}
+
+function EscrowPanel(order) {
+  const chain = order.chain;
+  if (!chain) {
+    return `
+      <section class="escrow-panel">
+        <div><strong>NeighborTrust 托管</strong><span>Monad Testnet · 0.01 Test MON</span></div>
+        <p>链上只保存任务摘要哈希和资金状态，住址、电话与聊天内容仍留在本地。</p>
+        <button type="button" class="escrow-action" data-create-escrow="${order.id}">创建链上托管</button>
+      </section>
+    `;
+  }
+
+  const progress = chain.phase ? window.NeighborWeb3.finalityLabel(chain.phase) : "等待确认";
+  const actionByStatus = {
+    0: `<button type="button" data-escrow-action="acceptTask" data-order-id="${order.id}">邻居接单</button><button type="button" data-escrow-action="cancelTask" data-order-id="${order.id}">取消并退款</button>`,
+    1: `<button type="button" data-escrow-action="markCompleted" data-order-id="${order.id}">提交完成</button><button type="button" data-escrow-action="raiseDispute" data-order-id="${order.id}">发起争议</button>`,
+    2: `<button type="button" data-escrow-action="approveAndRelease" data-order-id="${order.id}">验收并放款</button><button type="button" data-escrow-action="raiseDispute" data-order-id="${order.id}">冻结争议</button>`,
+  };
+  return `
+    <section class="escrow-panel active">
+      <div><strong>${chain.statusText || "等待接单"}</strong><span>Monad Testnet</span></div>
+      <p class="chain-progress"><i class="${chain.phase || "submitted"}"></i>${progress}${chain.message ? ` · ${chain.message}` : ""}</p>
+      <div class="escrow-actions">${actionByStatus[chain.status] || ""}</div>
+      ${chain.hash ? `<a href="${chain.explorerUrl}" target="_blank" rel="noreferrer">在 Monad 浏览器查看交易</a>` : ""}
+    </section>
+  `;
+}
+
+async function getWeb3Client() {
+  if (web3Client) return web3Client;
+  if (!window.ethereum) throw new Error("Wallet not installed");
+  if (!window.ethers || !window.NeighborWeb3 || !window.NB_WEB3_CONFIG) throw new Error("Web3 unavailable");
+  web3Artifact ||= await fetch(window.NB_WEB3_CONFIG.artifactUrl).then((response) => {
+    if (!response.ok) throw new Error("Artifact unavailable");
+    return response.json();
+  });
+  web3Client = window.NeighborWeb3.createClient({
+    ethereum: window.ethereum,
+    ethers: window.ethers,
+    config: window.NB_WEB3_CONFIG,
+    artifact: web3Artifact,
+    onProgress(phase, hash) {
+      walletState.phase = phase;
+      const order = orders.find((item) => item.id === activeEscrowOrderId);
+      if (order?.chain) {
+        order.chain.phase = phase;
+        order.chain.hash = hash;
+        order.chain.explorerUrl = web3Client.transactionUrl(hash);
+        renderMessages();
+      }
+    },
+  });
+  return web3Client;
+}
+
+async function connectMonadWallet() {
+  walletState.phase = "connecting";
+  walletState.message = "";
+  renderHome();
+  try {
+    const client = await getWeb3Client();
+    const result = await client.connect();
+    walletState.account = result.account;
+    walletState.balance = Number(result.balanceFormatted).toFixed(3);
+    walletState.phase = "connected";
+  } catch (error) {
+    walletState.phase = "error";
+    walletState.message = error.message === "Wallet not installed"
+      ? "请先安装 MetaMask 或其他 EVM 钱包。"
+      : window.NeighborWeb3?.normalizeWalletError(error) || "钱包连接失败。";
+    window.alert(walletState.message);
+  }
+  renderHome();
+}
+
+async function createEscrowForOrder(orderId) {
+  const order = orders.find((item) => item.id === orderId);
+  if (!order) return;
+  activeEscrowOrderId = orderId;
+  try {
+    const client = await getWeb3Client();
+    if (!walletState.account) await connectMonadWallet();
+    if (!walletState.account) return;
+    order.chain = { status: 0, statusText: "等待接单", phase: "submitted", message: "请在钱包中确认" };
+    renderMessages();
+    const result = await client.createTask({
+      title: order.title,
+      time: "待协商",
+      place: "小区公共区域",
+      budget: 0.01,
+    }, "0.01");
+    order.chain = {
+      ...order.chain,
+      taskId: result.taskId,
+      hash: result.hash,
+      phase: result.finality,
+      status: 0,
+      statusText: "等待接单",
+      explorerUrl: client.transactionUrl(result.hash),
+      message: "0.01 Test MON 已锁定",
+    };
+  } catch (error) {
+    order.chain = null;
+    window.alert(window.NeighborWeb3.normalizeWalletError(error));
+  } finally {
+    activeEscrowOrderId = null;
+    renderMessages();
+  }
+}
+
+async function runEscrowAction(orderId, method) {
+  const order = orders.find((item) => item.id === orderId);
+  if (!order?.chain?.taskId) return;
+  activeEscrowOrderId = orderId;
+  try {
+    const client = await getWeb3Client();
+    const result = await client[method](order.chain.taskId);
+    const task = await client.readTask(order.chain.taskId);
+    Object.assign(order.chain, {
+      hash: result.hash,
+      phase: result.finality,
+      status: task.status,
+      statusText: task.statusText,
+      explorerUrl: client.transactionUrl(result.hash),
+      message: "链上状态已同步",
+    });
+  } catch (error) {
+    window.alert(window.NeighborWeb3.normalizeWalletError(error));
+  } finally {
+    activeEscrowOrderId = null;
+    renderMessages();
+  }
 }
 
 function renderPrivateChat() {
@@ -430,7 +789,50 @@ function sendPrivateChat() {
   renderPrivateChat();
 }
 
+function CreditProofButton(action, forceIdentity = false) {
+  const proofAttribute = forceIdentity ? 'data-proof-type="identity"' : `data-proof-type="${action.id}"`;
+  return `
+    <button class="verification-card" type="button" ${proofAttribute}>
+      <span>${action.tag}</span>
+      <strong>${action.title}</strong>
+      <small>${action.desc}</small>
+      <em>${action.score}</em>
+    </button>
+  `;
+}
+
+function CreditRankingSection() {
+  const ranking = showFullCreditRanking ? data.creditRanking : data.creditRanking.slice(0, 5);
+  return `
+    <section class="credit-ranking-card">
+      <div class="section-head">
+        <h2>本小区信用分排行</h2>
+        <button type="button" data-action="toggle-credit-ranking">${showFullCreditRanking ? "收起" : "查看更多"} &gt;</button>
+      </div>
+      <div class="credit-ranking-list">
+        ${ranking
+          .map(
+            (item) => `
+              <article class="${item.name === profileState.name ? "is-me" : ""}">
+                <img class="ranking-avatar" src="${item.avatar}" alt="${item.name}的头像" loading="lazy" />
+                <div>
+                  <strong>${item.name}</strong>
+                  <small>${item.label}</small>
+                </div>
+                <em>${item.score}</em>
+              </article>
+            `,
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderProfile() {
+  const profile = data.creditProfile;
+  const identityAction = data.creditProofActions.find((item) => item.id === "identity") || data.creditProofActions[0];
+  const otherProofActions = data.creditProofActions.filter((item) => item.id !== "identity");
   $("#screen-profile").innerHTML = `
     <header class="simple-header">
       <div>
@@ -439,23 +841,89 @@ function renderProfile() {
       </div>
     </header>
     <section class="profile-card">
-      <div class="profile-score">${data.user.credit}</div>
+      <div class="profile-credit-panel">
+        <button class="profile-photo-upload" type="button" data-action="upload-profile-photo" aria-label="上传个人照片">
+          ${AvatarContent("profile-photo-image")}
+          <small>上传个人照片</small>
+        </button>
+        <div class="profile-score">${data.user.credit}</div>
+      </div>
       <div>
-        <h2>同小区认证已通过</h2>
-        <p>实名、楼栋、手机号均已完成。可发布低风险互助任务，也可以申请借用公共工具。</p>
+        <h2>${profile.level} · ${profile.title}</h2>
+        <p>${profile.summary}</p>
+        <div class="profile-action-row">
+          <button class="small-action credit-rule-trigger" type="button" data-action="open-credit-rules">查看信用分说明</button>
+        </div>
       </div>
     </section>
     <section class="credit-status-grid" aria-label="信用与安全权限">
-      <div><span>信用等级</span><strong>A</strong><small>高信用优先匹配</small></div>
-      <div><span>熟人背书</span><strong>6 人</strong><small>同小区注册用户认证</small></div>
-      <div><span>低风险互助</span><strong>已开放</strong><small>跑腿、工具、遛宠</small></div>
-      <div><span>高风险服务</span><strong>待补充</strong><small>需无犯罪记录/押金/专项协议</small></div>
+      ${profile.metrics.map((item) => `<div><span>${item.label}</span><strong>${item.value}</strong><small>${item.note}</small></div>`).join("")}
     </section>
-    <section class="profile-list">
-      <div><span>完成互助</span><strong>23</strong></div>
-      <div><span>准时履约</span><strong>98%</strong></div>
-      <div><span>近 30 天投诉</span><strong>0</strong></div>
+    <section class="profile-verification-card">
+      <div class="section-head">
+        <h2>认证资料与加分动作</h2>
+        <button type="button" data-action="open-credit-rules">规则</button>
+      </div>
+      <div class="profile-verification-grid">
+        ${CreditProofButton(identityAction, true)}
+        ${otherProofActions.map((action) => CreditProofButton(action)).join("")}
+      </div>
+      ${
+        creditProofResult
+          ? `<div class="credit-proof-result"><strong>${creditProofResult.title}</strong><p>${creditProofResult.message}</p></div>`
+          : `<p class="credit-proof-hint">上传后系统会根据材料类型生成预计加分动作，涉及实名、人脸、无犯罪记录和高风险权限的材料需人工复核后生效。</p>`
+      }
     </section>
+    ${CreditRankingSection()}
+  `;
+}
+
+function renderHighRiskRules() {
+  return `
+    <section class="high-risk-rule-grid" aria-label="高风险服务规则">
+      <div class="high-risk-rule-head">
+        <span>高风险权限</span>
+        <h3>接孩子、老人陪护、遛宠、上门维修</h3>
+        <p>这些规则挂在信用分说明中，用来决定谁可以接高风险服务，以及发生纠纷时如何留痕、预警和追责。</p>
+      </div>
+      ${data.highRiskServiceRules
+        .map(
+          (rule) => `
+            <article class="high-risk-rule-card">
+              <div>
+                <strong>${escapeHtml(rule.title)}</strong>
+                <span>${escapeHtml(rule.level)}</span>
+              </div>
+              <ul>
+                ${rule.points.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}
+              </ul>
+            </article>
+          `,
+        )
+        .join("")}
+    </section>
+  `;
+}
+
+function renderCreditRuleSheet() {
+  $("#creditRuleBody").innerHTML = `
+    <div class="credit-rule-summary">
+      <strong>信用分不是装饰分，而是邻里服务的风控准入。</strong>
+      <p>需求方可以优先选择高信用、强实名、持证、熟人背书多、履约记录好的邻居；平台也会用它来限制接孩子、老人陪护、遛宠、上门维修等高风险场景。</p>
+    </div>
+    ${data.creditRules
+      .map(
+        (section) => `
+          <article class="credit-rule-block">
+            <h3>${section.title}</h3>
+            <ul>
+              ${section.points.map((point) => `<li>${point}</li>`).join("")}
+            </ul>
+          </article>
+        `,
+      )
+      .join("")}
+    ${renderHighRiskRules()}
   `;
 }
 
@@ -697,25 +1165,52 @@ function getDiscoverPosts() {
 
 function renderAssistant() {
   $("#screen-assistant").innerHTML = `
-    <header class="simple-header">
-      <div>
-        <p>AI 助手</p>
-        <h1>说一句话，匹配顺路互助</h1>
-      </div>
-      <button type="button" data-action="open-ai-compose">发布</button>
-    </header>
-    <section class="assistant-chat" id="assistantChatLog">
-      ${assistantMessages.map(AssistantBubble).join("")}
+    <section class="assistant-page-shell">
+      <header class="assistant-hero-header">
+        <div>
+          <p>AI 助手</p>
+          <h1>说一句话，匹配顺路互助</h1>
+          <span>你可以直接和我说：我今天去中通快递站，有没有邻居要带快递的。我会先帮你匹配附近求助，再问你要不要发帖。</span>
+        </div>
+        <button type="button" data-action="open-ai-compose">发布</button>
+      </header>
+      <section class="assistant-example-row" aria-label="AI 示例句">
+        <button type="button" data-assistant-example="我今天去中通快递站，有没有邻居要带快递的">顺路带快递</button>
+        <button type="button" data-assistant-example="今晚 6 点前谁能帮我取一个快递到 6 栋门口">找人帮取件</button>
+        <button type="button" data-assistant-example="周六上午想借一把电钻装窗帘">借工具</button>
+      </section>
+      <section class="assistant-workspace">
+        <div class="assistant-conversation-panel">
+          <section class="assistant-chat" id="assistantChatLog">
+            ${assistantMessages.map(AssistantBubble).join("")}
+          </section>
+          ${voiceStatusText ? `<p class="voice-status ${isRecordingVoice ? "listening" : ""}">${voiceStatusText}</p>` : ""}
+          <section class="assistant-composer">
+            <button type="button" class="voice-action ${isRecordingVoice ? "recording" : ""}" id="assistantVoice" aria-label="${isRecordingVoice ? "停止语音输入" : "语音输入"}" title="${isRecordingVoice ? "停止语音输入" : "语音输入"}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/><path d="M8 22h8"/></svg>
+              <span>${isRecordingVoice ? "松开发送" : "按住说"}</span>
+            </button>
+            <input id="assistantInput" type="text" placeholder="例如：我今天去菜鸟驿站" />
+            <button type="button" class="primary-action" id="assistantSend">发送</button>
+          </section>
+        </div>
+        <section class="assistant-suggestions" id="assistantSuggestions">
+          ${pendingAssistantPost ? AssistantPublishCard(pendingAssistantPost) : ""}
+          ${assistantHelpers.map(AssistantHelperCard).join("")}
+          ${assistantSuggestions.map(AssistantHelpCard).join("")}
+          ${!pendingAssistantPost && !assistantHelpers.length && !assistantSuggestions.length ? AssistantEmptyState() : ""}
+        </section>
+      </section>
     </section>
-    <section class="assistant-suggestions" id="assistantSuggestions">
-      ${pendingAssistantPost ? AssistantPublishCard(pendingAssistantPost) : ""}
-      ${assistantHelpers.map(AssistantHelperCard).join("")}
-      ${assistantSuggestions.map(AssistantHelpCard).join("")}
-    </section>
-    <section class="assistant-composer">
-      <input id="assistantInput" type="text" placeholder="例如：我今天去菜鸟驿站" />
-      <button type="button" class="primary-action" id="assistantSend">发送</button>
-    </section>
+  `;
+}
+
+function AssistantEmptyState() {
+  return `
+    <article class="assistant-empty-card">
+      <strong>先说一句自然语言</strong>
+      <p>AI 会判断你是在提供顺路帮助，还是需要邻居帮忙，再匹配附近帖子、邻居和可发布内容。</p>
+    </article>
   `;
 }
 
@@ -833,6 +1328,12 @@ function buildPostFromAssistant(result, text) {
   };
 }
 
+function assistantSourceNote(result) {
+  if (result.source === "model") return "";
+  if (result.modelError) return `（当前使用本地规则：模型接口返回 ${result.modelError}）`;
+  return "（当前使用本地规则：未连接大模型）";
+}
+
 async function sendAssistantMessage(message) {
   const text = message.trim();
   if (!text) return;
@@ -849,7 +1350,7 @@ async function sendAssistantMessage(message) {
     const result = await response.json();
     assistantMessages.pop();
     const targetText = result.intent?.type === "help_request" ? "下面是可能能帮忙的邻居" : "下面是可能顺路匹配的求助";
-    assistantMessages.push({ role: "assistant", text: `${result.reply || "我整理好了。"} ${targetText}。要不要我帮你发一条帖子，让邻居在发现里看到？` });
+    assistantMessages.push({ role: "assistant", text: `${result.reply || "我整理好了。"} ${targetText}。要不要我帮你发一条帖子，让邻居在发现里看到？${assistantSourceNote(result)}` });
     assistantSuggestions = result.nearbyRequests || [];
     assistantHelpers = result.nearbyHelpers || [];
     pendingAssistantPost = buildPostFromAssistant(result, text);
@@ -861,6 +1362,101 @@ async function sendAssistantMessage(message) {
     pendingAssistantPost = buildPostFromAssistant({}, text);
   }
 
+  renderAssistant();
+}
+
+function startAssistantVoice() {
+  if (isRecordingVoice || voiceRecognition) return;
+  isPressingVoice = true;
+  voiceStopRequested = false;
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Recognition) {
+    voiceStatusText = "当前浏览器暂不支持语音输入";
+    assistantMessages.push({ role: "assistant", text: "当前浏览器不支持内置语音识别，请用 Chrome 或 Edge 打开，或直接打字发送。" });
+    renderAssistant();
+    return;
+  }
+  voiceRecognition = new Recognition();
+  voiceRecognition.lang = "zh-CN";
+  voiceRecognition.interimResults = true;
+  voiceRecognition.continuous = true;
+  voiceRecognition.lastTranscript = "";
+  voiceRecognition.addEventListener("start", () => {
+    isRecordingVoice = true;
+    voiceStatusText = "按住说话，松开后发送...";
+    renderAssistant();
+  });
+  voiceRecognition.addEventListener("audiostart", () => {
+    voiceStatusText = "麦克风已接入，按住继续说...";
+    renderAssistant();
+  });
+  voiceRecognition.addEventListener("speechstart", () => {
+    voiceStatusText = "听到你说话了，松开后发送...";
+    renderAssistant();
+  });
+  voiceRecognition.addEventListener("result", (event) => {
+    const transcript = Array.from(event.results, (result) => result[0]?.transcript || "")
+      .join("")
+      .trim();
+    if (!transcript) return;
+    voiceRecognition.lastTranscript = transcript;
+    voiceStatusText = `已识别：${transcript}（松开发送）`;
+    renderAssistant();
+  });
+  voiceRecognition.addEventListener("error", (event) => {
+    const messages = {
+      "not-allowed": "浏览器没有拿到麦克风权限，请在地址栏左侧允许麦克风后再试。",
+      "service-not-allowed": "浏览器语音服务被禁用，请换 Chrome 或 Edge 再试。",
+      "audio-capture": "没有找到可用麦克风，请检查系统输入设备。",
+      "no-speech": "没有听到语音，请靠近麦克风再说一遍。",
+      network: "浏览器语音识别服务网络失败，可以直接打字发送。",
+      aborted: "语音输入已停止。",
+    };
+    const message = messages[event.error] || `语音没有识别成功，错误：${event.error || "unknown"}`;
+    if (event.error !== "aborted" || !voiceStopRequested) assistantMessages.push({ role: "assistant", text: message });
+    voiceStatusText = "语音输入已结束";
+    isRecordingVoice = false;
+    isPressingVoice = false;
+    voiceRecognition = null;
+    renderAssistant();
+  });
+  voiceRecognition.addEventListener("end", () => {
+    const transcript = voiceRecognition?.lastTranscript?.trim() || "";
+    isRecordingVoice = false;
+    isPressingVoice = false;
+    voiceRecognition = null;
+    if (transcript) {
+      voiceStatusText = `已发送语音文字：${transcript}`;
+      sendAssistantMessage(transcript);
+      return;
+    }
+    voiceStatusText = voiceStopRequested ? "没有听清，可以长按再说一次" : voiceStatusText;
+    renderAssistant();
+  });
+  try {
+    voiceStatusText = "正在唤起麦克风...";
+    isRecordingVoice = true;
+    voiceRecognition.start();
+    renderAssistant();
+  } catch {
+    voiceStatusText = "语音输入启动失败";
+    assistantMessages.push({ role: "assistant", text: "语音输入没有启动成功，请确认浏览器允许麦克风权限，或直接打字发送。" });
+    isRecordingVoice = false;
+    isPressingVoice = false;
+    voiceRecognition = null;
+    renderAssistant();
+  }
+}
+
+function stopAssistantVoice() {
+  if (!voiceRecognition) return;
+  voiceStopRequested = true;
+  voiceStatusText = "正在整理刚才听到的内容...";
+  try {
+    voiceRecognition.stop();
+  } catch {
+    voiceRecognition.abort();
+  }
   renderAssistant();
 }
 
@@ -876,6 +1472,7 @@ function publishAssistantPost() {
   pendingAssistantPost = null;
   discoverMode = "latest";
   discoverCategory = postCategory;
+  renderHome();
   renderAssistant();
   renderDiscover();
   showScreen("discover");
@@ -915,7 +1512,13 @@ function openCompose(template) {
 
 function closeCompose() {
   $("#composeSheet").classList.remove("open");
-  $("#sheetBackdrop").classList.remove("open");
+  if (
+    !$("#profileSheet").classList.contains("open") &&
+    !$("#creditRuleSheet").classList.contains("open") &&
+    !$("#errandRuleSheet").classList.contains("open")
+  ) {
+    $("#sheetBackdrop").classList.remove("open");
+  }
 }
 
 function openProfileEditor() {
@@ -927,7 +1530,45 @@ function openProfileEditor() {
 
 function closeProfileEditor() {
   $("#profileSheet").classList.remove("open");
-  if (!$("#composeSheet").classList.contains("open")) {
+  if (
+    !$("#composeSheet").classList.contains("open") &&
+    !$("#creditRuleSheet").classList.contains("open") &&
+    !$("#errandRuleSheet").classList.contains("open")
+  ) {
+    $("#sheetBackdrop").classList.remove("open");
+  }
+}
+
+function openCreditRules() {
+  renderCreditRuleSheet();
+  $("#creditRuleSheet").classList.add("open");
+  $("#sheetBackdrop").classList.add("open");
+}
+
+function closeCreditRules() {
+  $("#creditRuleSheet").classList.remove("open");
+  if (
+    !$("#composeSheet").classList.contains("open") &&
+    !$("#profileSheet").classList.contains("open") &&
+    !$("#errandRuleSheet").classList.contains("open")
+  ) {
+    $("#sheetBackdrop").classList.remove("open");
+  }
+}
+
+function openErrandRules() {
+  renderErrandRuleSheet();
+  $("#errandRuleSheet").classList.add("open");
+  $("#sheetBackdrop").classList.add("open");
+}
+
+function closeErrandRules() {
+  $("#errandRuleSheet").classList.remove("open");
+  if (
+    !$("#composeSheet").classList.contains("open") &&
+    !$("#profileSheet").classList.contains("open") &&
+    !$("#creditRuleSheet").classList.contains("open")
+  ) {
     $("#sheetBackdrop").classList.remove("open");
   }
 }
@@ -936,7 +1577,7 @@ function updateProfilePreview() {
   const preview = $("#profileAvatarPreview");
   if (!preview) return;
   preview.innerHTML = profileState.avatar
-    ? `<img src="${profileState.avatar}" alt="${profileState.name}的头像预览" />`
+    ? `<img src="${profileState.avatar}" alt="${profileState.name}的头像预览" ${avatarPositionStyle()} />`
     : profileState.name.slice(0, 1);
 }
 
@@ -945,6 +1586,116 @@ function refreshProfileViews() {
   renderAssistant();
   renderProfile();
   showScreen(activeScreen, false);
+}
+
+function clampAvatarPosition(value) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function updateAvatarPositionViews() {
+  const position = profileState.avatarPosition || { x: 50, y: 50 };
+  $$(".avatar-image, .profile-photo-image, .avatar-upload-preview img, #profileAvatarPreview img").forEach((image) => {
+    image.style.setProperty("--avatar-position", `${position.x}% ${position.y}%`);
+    image.style.objectPosition = `${position.x}% ${position.y}%`;
+  });
+  localStorage.setItem(profileStorageKey, JSON.stringify(profileState));
+}
+
+function startAvatarDrag(event, target) {
+  if (!profileState.avatar) return;
+  const rect = target.getBoundingClientRect();
+  avatarDragState = {
+    target,
+    startX: event.clientX,
+    startY: event.clientY,
+    startPosition: { ...(profileState.avatarPosition || { x: 50, y: 50 }) },
+    width: rect.width || 1,
+    height: rect.height || 1,
+    didDrag: false,
+  };
+  target.setPointerCapture?.(event.pointerId);
+}
+
+function handleAvatarDragMove(event) {
+  if (!avatarDragState) return;
+  const dx = event.clientX - avatarDragState.startX;
+  const dy = event.clientY - avatarDragState.startY;
+  avatarDragState.didDrag = avatarDragState.didDrag || Math.abs(dx) + Math.abs(dy) > 3;
+  profileState.avatarPosition = {
+    x: clampAvatarPosition(avatarDragState.startPosition.x + (dx / avatarDragState.width) * 50),
+    y: clampAvatarPosition(avatarDragState.startPosition.y + (dy / avatarDragState.height) * 50),
+  };
+  updateAvatarPositionViews();
+}
+
+function endAvatarDrag() {
+  if (!avatarDragState) return;
+  suppressNextAvatarUploadClick = avatarDragState.didDrag;
+  avatarDragState = null;
+}
+
+function handleCreditProofUpload(file) {
+  const action = data.creditProofActions.find((item) => item.id === activeProofType) || data.creditProofActions[0];
+  if (!file || !action) return;
+  creditProofResult = {
+    title: `${action.tag} · 已生成加分动作`,
+    message: `系统已接收「${escapeHtml(file.name)}」，识别为${action.title}材料，预计信用加分 ${action.score}。涉及实名、人脸、无犯罪记录或高风险权限的材料会进入人工复核。`,
+  };
+  renderProfile();
+  showScreen("profile", false);
+}
+
+function currentCircleAvatar() {
+  return profileState.avatar || "assets/avatars/resident-man.png";
+}
+
+function publishCirclePost() {
+  const input = $("#circlePostInput");
+  const content = input?.value.trim();
+  if (!content) return;
+  data.circlePosts.unshift({
+    id: `bbs-user-${Date.now()}`,
+    category: "新帖",
+    title: content.length > 24 ? `${content.slice(0, 24)}...` : content,
+    content,
+    time: "刚刚",
+    author: { name: profileState.name, avatar: currentCircleAvatar() },
+    tags: ["邻里讨论", "新鲜事"],
+    replies: [],
+  });
+  showAllCirclePosts = true;
+  renderCircleBbs();
+  showScreen("circle", false);
+}
+
+function replyCirclePost(postId) {
+  const input = document.querySelector(`[data-circle-reply-input="${postId}"]`);
+  const text = input?.value.trim();
+  if (!text) return;
+  const post = data.circlePosts.find((item) => item.id === postId);
+  if (!post) return;
+  post.replies.push({
+    name: profileState.name,
+    avatar: currentCircleAvatar(),
+    text,
+  });
+  renderCircleBbs();
+  showScreen("circle", false);
+}
+
+function placeErrandOrder() {
+  const service = selectedErrandService();
+  const contact = $("#errandContact")?.value.trim() || "待补充联系人";
+  const phone = $("#errandPhone")?.value.trim() || "待补充手机号";
+  const address = $("#errandAddress")?.value.trim() || "待补充地址";
+  const time = $("#errandTime")?.value.trim() || "待补充时间";
+  const note = $("#errandNote")?.value.trim() || service.note;
+  createOrderFromTask({
+    title: service.title,
+    desc: `${service.price} · ${contact} · ${phone} · ${address} · ${time} · ${note}`,
+    category: "ask",
+    safetyPlan: riskPolicies.low_risk,
+  });
 }
 
 function showScreen(name, shouldScroll = true) {
@@ -962,6 +1713,7 @@ function createOrderFromTask(task = lastTask, shouldShowMessages = true) {
     desc: task.desc,
     status: "查看",
     category: task.category || "ask",
+    budget: task.budget || 0,
   });
   renderMessages();
   if (shouldShowMessages) showScreen("messages");
@@ -990,11 +1742,18 @@ function bindEvents() {
     if (button.id === "openCompose") openCompose();
     if (button.id === "closeCompose") closeCompose();
     if (button.id === "closeProfileEditor") closeProfileEditor();
+    if (button.id === "closeCreditRules") closeCreditRules();
+    if (button.id === "closeErrandRules") closeErrandRules();
     if (button.id === "chooseAvatar") $("#avatarInput").click();
     if (button.id === "saveProfile") {
       saveProfileState({ name: $("#profileNameInput").value, avatar: profileState.avatar });
       closeProfileEditor();
       refreshProfileViews();
+    }
+    if (button.dataset.proofType) {
+      activeProofType = button.dataset.proofType;
+      $("#creditProofInput").click();
+      return;
     }
     if (button.id === "mobileParse") {
       if (composeMode === "agent") {
@@ -1003,8 +1762,22 @@ function bindEvents() {
         publishManualPost();
       }
     }
+    if (button.id === "circlePublish") publishCirclePost();
+    if (button.id === "errandOrderSubmit") placeErrandOrder();
     if (button.id === "assistantSend") sendAssistantMessage($("#assistantInput").value);
+    if (button.id === "assistantVoice") return;
     if (button.id === "privateChatSend") sendPrivateChat();
+    if (button.dataset.createEscrow) createEscrowForOrder(button.dataset.createEscrow);
+    if (button.dataset.escrowAction) runEscrowAction(button.dataset.orderId, button.dataset.escrowAction);
+
+    if (button.dataset.assistantExample) {
+      const input = $("#assistantInput");
+      if (input) {
+        input.value = button.dataset.assistantExample;
+        input.focus();
+      }
+      return;
+    }
 
     const quickId = button.dataset.quickId;
     if (quickId) {
@@ -1015,6 +1788,26 @@ function bindEvents() {
 
     const action = button.dataset.action;
     if (action === "edit-profile") openProfileEditor();
+    if (action === "connect-wallet") connectMonadWallet();
+    if (action === "upload-profile-photo") {
+      if (suppressNextAvatarUploadClick) {
+        suppressNextAvatarUploadClick = false;
+        return;
+      }
+      $("#avatarInput").click();
+    }
+    if (action === "open-credit-rules") openCreditRules();
+    if (action === "back-home") showScreen("home");
+    if (action === "show-errand-rule") openErrandRules();
+    if (action === "toggle-circle-posts") {
+      showAllCirclePosts = !showAllCirclePosts;
+      renderCircleBbs();
+      showScreen("circle", false);
+    }
+    if (action === "toggle-credit-ranking") {
+      showFullCreditRanking = !showFullCreditRanking;
+      renderProfile();
+    }
     if (action === "open-ai-compose") openCompose(lastTask?.title === "工具借用" ? "tool" : undefined);
     if (action === "publish-ai-post") publishAssistantPost();
     if (action === "notify") showScreen("messages");
@@ -1029,6 +1822,13 @@ function bindEvents() {
     }
 
     if (button.dataset.borrowId) borrowTool(button.dataset.borrowId);
+    if (button.dataset.errandServiceId) {
+      selectedErrandServiceId = button.dataset.errandServiceId;
+      renderErrandServices();
+      renderErrandRuleSheet();
+      showScreen("errand", false);
+    }
+    if (button.dataset.replyCirclePost) replyCirclePost(button.dataset.replyCirclePost);
     if (button.dataset.nextOrder) button.textContent = "已读";
     if (button.dataset.openChat) openPrivateChat(button.dataset.openChat);
     if (button.dataset.helpId) openHelpReply(button.dataset.helpId, button.dataset.helpMode);
@@ -1078,9 +1878,40 @@ function bindEvents() {
     }
   });
 
+  document.body.addEventListener("pointerdown", (event) => {
+    const target = event.target.closest(".profile-photo-upload");
+    if (!target) return;
+    startAvatarDrag(event, target);
+  });
+
+  document.body.addEventListener("pointerdown", (event) => {
+    const button = event.target.closest("#assistantVoice");
+    if (!button) return;
+    event.preventDefault();
+    button.setPointerCapture?.(event.pointerId);
+    startAssistantVoice();
+  });
+
+  document.body.addEventListener("pointerup", (event) => {
+    const button = event.target.closest("#assistantVoice");
+    if (!button && !isPressingVoice) return;
+    event.preventDefault();
+    stopAssistantVoice();
+  });
+
+  document.body.addEventListener("pointercancel", () => {
+    if (isPressingVoice) stopAssistantVoice();
+  });
+
+  document.body.addEventListener("pointermove", handleAvatarDragMove);
+  document.body.addEventListener("pointerup", endAvatarDrag);
+  document.body.addEventListener("pointercancel", endAvatarDrag);
+
   $("#sheetBackdrop").addEventListener("click", () => {
     closeCompose();
     closeProfileEditor();
+    closeCreditRules();
+    closeErrandRules();
   });
 
   $("#avatarInput").addEventListener("change", (event) => {
@@ -1089,9 +1920,17 @@ function bindEvents() {
     const reader = new FileReader();
     reader.addEventListener("load", () => {
       profileState.avatar = String(reader.result || "");
+      profileState.avatarPosition = { x: 50, y: 50 };
       updateProfilePreview();
+      refreshProfileViews();
     });
     reader.readAsDataURL(file);
+  });
+
+  $("#creditProofInput").addEventListener("change", (event) => {
+    const file = event.target.files?.[0];
+    handleCreditProofUpload(file);
+    event.target.value = "";
   });
 
   $("#mobileText").addEventListener("input", updateMobileAssistantSheet);
@@ -1129,9 +1968,13 @@ function initPresets() {
 function init() {
   renderHome();
   renderAssistant();
+  renderErrandServices();
+  renderCircleBbs();
   renderDiscover();
   renderMessages();
   renderProfile();
+  renderCreditRuleSheet();
+  renderErrandRuleSheet();
   initPresets();
   bindEvents();
 }
