@@ -149,7 +149,7 @@ svg {
   left: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   align-items: end;
   width: min(calc(100% - 32px), 428px);
   min-height: 72px;
@@ -255,7 +255,9 @@ svg {
 }
 
 .compose-sheet,
-.profile-sheet {
+.profile-sheet,
+.credit-rule-sheet,
+.errand-rule-sheet {
   position: fixed;
   right: 0;
   bottom: 0;
@@ -275,7 +277,9 @@ svg {
 }
 
 .compose-sheet.open,
-.profile-sheet.open {
+.profile-sheet.open,
+.credit-rule-sheet.open,
+.errand-rule-sheet.open {
   transform: translateY(0);
 }
 

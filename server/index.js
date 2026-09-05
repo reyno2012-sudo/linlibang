@@ -1,7 +1,9 @@
+const { loadEnvFile } = require("./src/env");
 const { loadConfig } = require("./src/config");
 const { createApp } = require("./src/app");
 const { logger } = require("./src/logger");
 
+loadEnvFile();
 const config = loadConfig(process.env);
 const app = createApp(config);
 
