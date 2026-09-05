@@ -90,6 +90,57 @@ test("creates an order and advances it through fulfillment states", async (t) =>
   assert.deepEqual(evidenced.body.order.evidence, ["已上传到达照片"]);
 });
 
+test("attaches a validated Monad escrow receipt to an order", async (t) => {
+  const baseUrl = await startTestServer(t);
+  const parsed = await jsonRequest(baseUrl, "/api/tasks/parse", {
+    method: "POST",
+    body: JSON.stringify({ text: "帮我取快递，预算 10 元。" }),
+  });
+  const created = await jsonRequest(baseUrl, "/api/orders", {
+    method: "POST",
+    body: JSON.stringify({ task: parsed.body.task, candidateId: parsed.body.matches[0].id }),
+  });
+
+  const chain = {
+    network: "monad-testnet",
+    chainId: 10143,
+    contractAddress: "0x1111111111111111111111111111111111111111",
+    taskId: `0x${"22".repeat(32)}`,
+    transactionHash: `0x${"33".repeat(32)}`,
+    status: "Open",
+    finality: "safe",
+  };
+  const linked = await jsonRequest(baseUrl, `/api/orders/${created.body.order.id}/chain`, {
+    method: "PATCH",
+    body: JSON.stringify(chain),
+  });
+
+  assert.equal(linked.response.status, 200);
+  assert.deepEqual(linked.body.order.chain.network, chain.network);
+  assert.equal(linked.body.order.chain.taskId, chain.taskId);
+  assert.match(linked.body.order.chain.linkedAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal("privateDetails" in linked.body.order.chain, false);
+});
+
+test("rejects malformed chain receipts", async (t) => {
+  const baseUrl = await startTestServer(t);
+  const parsed = await jsonRequest(baseUrl, "/api/tasks/parse", {
+    method: "POST",
+    body: JSON.stringify({ text: "帮我取快递，预算 10 元。" }),
+  });
+  const created = await jsonRequest(baseUrl, "/api/orders", {
+    method: "POST",
+    body: JSON.stringify({ task: parsed.body.task, candidateId: parsed.body.matches[0].id }),
+  });
+  const invalid = await jsonRequest(baseUrl, `/api/orders/${created.body.order.id}/chain`, {
+    method: "PATCH",
+    body: JSON.stringify({ network: "ethereum", chainId: 1, contractAddress: "not-an-address" }),
+  });
+
+  assert.equal(invalid.response.status, 422);
+  assert.equal(invalid.body.code, "VALIDATION_ERROR");
+});
+
 test("borrows a shared tool by creating a tool order", async (t) => {
   const baseUrl = await startTestServer(t);
   const { response, body } = await jsonRequest(baseUrl, "/api/tools/tool-1/borrow", {
@@ -202,4 +253,32 @@ test("assistant prioritizes childcare help over route wording", async (t) => {
   assert.equal(body.publishTask.category, "ask");
   assert.ok(body.nearbyHelpers.length > 0);
   assert.deepEqual(body.nearbyRequests, []);
+});
+
+test("assistant model environment can be loaded from a local env file", () => {
+  const { loadEnvFile } = require("../src/env");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "linlibang-env-"));
+  const envPath = path.join(dir, ".env");
+  fs.writeFileSync(
+    envPath,
+    [
+      "ASSISTANT_BASE_URL=https://api.aigcly.top",
+      "ASSISTANT_MODEL=grok-4.20-multi-agent-xhigh",
+      "ASSISTANT_API_KEY=secret-from-test",
+      "",
+    ].join("\n"),
+  );
+
+  const target = {};
+  loadEnvFile(envPath, target);
+  assert.equal(target.ASSISTANT_BASE_URL, "https://api.aigcly.top");
+  assert.equal(target.ASSISTANT_MODEL, "grok-4.20-multi-agent-xhigh");
+  assert.equal(target.ASSISTANT_API_KEY, "secret-from-test");
+
+  const protectedTarget = { ASSISTANT_API_KEY: "already-set" };
+  loadEnvFile(envPath, protectedTarget);
+  assert.equal(protectedTarget.ASSISTANT_API_KEY, "already-set");
+  assert.match(fs.readFileSync(path.resolve(__dirname, "../..", ".gitignore"), "utf8"), /^\.env$/m);
+
+  fs.rmSync(dir, { recursive: true, force: true });
 });

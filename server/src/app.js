@@ -86,12 +86,13 @@ async function routeApi(method, pathname, body, store, env = process.env) {
     return { status: 200, body: service.applyCreditEvent(store, creditAction[1], body) };
   }
 
-  const orderAction = pathname.match(/^\/api\/orders\/([^/]+)\/(advance|evidence|dispute)$/);
+  const orderAction = pathname.match(/^\/api\/orders\/([^/]+)\/(advance|evidence|dispute|chain)$/);
   if (orderAction && method === "PATCH") {
     const [, id, action] = orderAction;
     if (action === "advance") return { status: 200, body: { order: service.advanceOrder(store, id) } };
     if (action === "evidence") return { status: 200, body: { order: service.addEvidence(store, id, body.note) } };
     if (action === "dispute") return { status: 200, body: { order: service.disputeOrder(store, id, body.reason) } };
+    if (action === "chain") return { status: 200, body: { order: service.attachChainMetadata(store, id, body) } };
   }
 
   const borrowAction = pathname.match(/^\/api\/tools\/([^/]+)\/borrow$/);

@@ -656,6 +656,47 @@ function createOrder(store, input) {
   });
 }
 
+function attachChainMetadata(store, id, input) {
+  if (!input || typeof input !== "object") {
+    throw new ValidationError([{ field: "body", message: "链上凭证不能为空" }]);
+  }
+
+  const details = [];
+  if (input.network !== "monad-testnet") details.push({ field: "network", message: "仅支持 Monad Testnet" });
+  if (input.chainId !== 10143) details.push({ field: "chainId", message: "链 ID 必须为 10143" });
+  if (!/^0x[0-9a-fA-F]{40}$/.test(input.contractAddress || "")) {
+    details.push({ field: "contractAddress", message: "合约地址格式不正确" });
+  }
+  if (!/^0x[0-9a-fA-F]{64}$/.test(input.taskId || "")) {
+    details.push({ field: "taskId", message: "任务哈希格式不正确" });
+  }
+  if (!/^0x[0-9a-fA-F]{64}$/.test(input.transactionHash || "")) {
+    details.push({ field: "transactionHash", message: "交易哈希格式不正确" });
+  }
+  if (!["Open", "Accepted", "Completed", "Released", "Cancelled", "Disputed"].includes(input.status)) {
+    details.push({ field: "status", message: "合约状态不正确" });
+  }
+  if (!["submitted", "safe", "finalized"].includes(input.finality)) {
+    details.push({ field: "finality", message: "交易最终性不正确" });
+  }
+  if (details.length) throw new ValidationError(details);
+
+  return store.update((data) => {
+    const order = findOrder(data, id);
+    order.chain = {
+      network: input.network,
+      chainId: input.chainId,
+      contractAddress: input.contractAddress,
+      taskId: input.taskId,
+      transactionHash: input.transactionHash,
+      status: input.status,
+      finality: input.finality,
+      linkedAt: new Date().toISOString(),
+    };
+    return order;
+  });
+}
+
 function advanceOrder(store, id) {
   return store.update((data) => {
     const order = findOrder(data, id);
@@ -766,6 +807,7 @@ function borrowTool(store, toolId, borrowerId = "me") {
 
 module.exports = {
   addEvidence,
+  attachChainMetadata,
   advanceOrder,
   applyCreditEvent,
   borrowTool,
