@@ -5,8 +5,15 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server/index.js",
-    "test": "node server/tests/neighborhood.test.js && node server/tests/mobile-editable-task.test.js"
+    "test": "node server/tests/neighborhood.test.js && node server/tests/mobile-editable-task.test.js",
+    "contract:compile": "node scripts/compile-contract.js",
+    "contract:test": "node contracts/test/neighbor-escrow.test.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@openzeppelin/contracts": "5.6.1",
+    "ethers": "6.17.0",
+    "ganache": "7.9.2",
+    "solc": "0.8.30"
+  },
   "devDependencies": {}
 }
