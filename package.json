@@ -5,7 +5,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server/index.js",
-    "test": "node server/tests/neighborhood.test.js && node server/tests/mobile-editable-task.test.js",
+    "test": "node server/tests/neighborhood.test.js && node server/tests/mobile-editable-task.test.js && node contracts/test/neighbor-escrow.test.js",
     "contract:compile": "node scripts/compile-contract.js",
     "contract:test": "node contracts/test/neighbor-escrow.test.js"
   },
